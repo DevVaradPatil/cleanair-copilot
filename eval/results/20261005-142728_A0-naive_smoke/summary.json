@@ -1,0 +1,124 @@
+{
+ "recall@1": {
+  "mean": 0.3333,
+  "ci95": [
+   0.0,
+   0.6667
+  ],
+  "n": 6
+ },
+ "recall@3": {
+  "mean": 0.3333,
+  "ci95": [
+   0.0,
+   0.6667
+  ],
+  "n": 6
+ },
+ "recall@5": {
+  "mean": 0.3333,
+  "ci95": [
+   0.0,
+   0.6667
+  ],
+  "n": 6
+ },
+ "recall@10": {
+  "mean": 0.5,
+  "ci95": [
+   0.1667,
+   0.8333
+  ],
+  "n": 6
+ },
+ "mrr": {
+  "mean": 0.3611,
+  "ci95": [
+   0.0278,
+   0.7222
+  ],
+  "n": 6
+ },
+ "ndcg@5": {
+  "mean": 0.3333,
+  "ci95": [
+   0.0,
+   0.6667
+  ],
+  "n": 6
+ },
+ "faithfulness": {
+  "mean": 1.0,
+  "ci95": [
+   1.0,
+   1.0
+  ],
+  "n": 6
+ },
+ "must_include_ok": {
+  "mean": 0.3333,
+  "ci95": [
+   0.0,
+   0.6667
+  ],
+  "n": 6
+ },
+ "false_not_found": {
+  "mean": 0.0,
+  "ci95": [
+   0.0,
+   0.0
+  ],
+  "n": 6
+ },
+ "not_found_correct": null,
+ "abstain_unanswerable": null,
+ "abstain_answerable": {
+  "mean": 0.0,
+  "ci95": [
+   0.0,
+   0.0
+  ],
+  "n": 6
+ },
+ "by_category": {
+  "policy_fact": {
+   "recall@5": {
+    "mean": 0.3333,
+    "ci95": [
+     0.0,
+     0.6667
+    ],
+    "n": 6
+   },
+   "mrr": {
+    "mean": 0.3611,
+    "ci95": [
+     0.0278,
+     0.7222
+    ],
+    "n": 6
+   },
+   "n": 6
+  }
+ },
+ "retrieval_latency_s": {
+  "p50": 0.089,
+  "p95": 0.771
+ },
+ "generation": {
+  "models": {
+   "gemini/gemini-3-flash-preview": 6
+  },
+  "latency_p50_s": 10.489999999999998,
+  "cost_usd_total": 0.0382
+ },
+ "errors": 0,
+ "config": "A0-naive",
+ "set": "smoke",
+ "n": 6,
+ "generate": true,
+ "collection": "fixed-500-50__bge-m3",
+ "judge_model": "gemini/gemini-3.1-flash-lite",
+ "limit": 6
+}

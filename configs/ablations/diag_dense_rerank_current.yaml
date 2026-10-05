@@ -1,0 +1,5 @@
+# D3 (diagnostic) — D2 + is_current filter (history allowed when the question asks about the past).
+name: D3-dense-rerank-current
+chunker: {type: fixed, max_tokens: 500, overlap: 50}
+retrieval: {dense: true, sparse: false, rerank: true, rerank_candidates: 30, rerank_threshold: null, k_final: 5, current_only: true}
+routing: {router: none}

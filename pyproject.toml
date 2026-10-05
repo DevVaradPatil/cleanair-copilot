@@ -8,10 +8,15 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
+    "litellm>=1.104.0",
+    "numpy>=2.4.6",
     "pydantic>=2.13.5",
     "pydantic-settings>=2.15.0",
     "pymupdf>=1.28.2",
     "pyyaml>=6.0.3",
+    "qdrant-client>=1.19.1",
+    "torch>=2.6.0",
+    "transformers>=5.18.0",
 ]
 
 [build-system]
@@ -27,13 +32,23 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]  # lets tests import the top-level eval package
 markers = ["integration: needs running services (Qdrant); run with `pytest -m integration`"]
 addopts = "-m 'not integration'"
 
 [tool.ruff]
-line-length = 110
+line-length = 120
 target-version = "py311"
 extend-exclude = ["*.md"]  # keep ruff off the spec and docs
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+# torch must come from the CUDA index (a plain PyPI wheel is CPU-only on Windows).
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu124" }]
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true

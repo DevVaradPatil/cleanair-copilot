@@ -1,0 +1,5 @@
+# A1 — A0 + structure-aware chunks with heading paths (needs 🧠 structure_chunker).
+name: A1-struct-chunk
+chunker: {type: structure, max_tokens: 400, overlap: 60}
+retrieval: {dense: true, sparse: false, rerank: false, k_final: 5, current_only: false}
+routing: {router: none}

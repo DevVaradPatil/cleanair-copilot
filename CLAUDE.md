@@ -17,9 +17,10 @@ there as they finish. **`TODO.md`** holds every manual task for Varad (keys, acc
 🧠 implementations). Whenever a step needs something you can't do yourself, add it to `TODO.md` with a `T<phase>.<n>`
 ID, mark it 👤 in `plan.md`, and tell Varad.
 
-**Current milestone: M1 (corpus + naive baseline).** M0 is done: uv project, `settings.py`, `config.py`
-with `configs/base.yaml`, Qdrant in Docker, and pytest + ruff + pre-commit. Update this line when a milestone's
-acceptance criteria pass.
+**Current milestone: M2, blocked only on Varad's 🧠 work (as of 2026-10-05).** M0 and M1 are built; A0 is
+measured (recall@5 0.698). Every non-🧠 piece of M2 is built and measured through diagnostic configs D1–D6
+(see README). Waiting on: 🧠 `structure_chunker` and `rrf`/`weighted` (then run A1–A3), T1.5 (golden-set check),
+and T0.5 (Gemini billing; generation evals need it). Update this line when a milestone's acceptance criteria pass.
 
 ## Working agreement (learning mode is ON, SPEC.md §0.1)
 
@@ -58,18 +59,44 @@ Explanations get exactly the length the learning-mode steps above ask for: no mo
 uv run pytest                                  # unit tests; must pass before declaring any step done
 uv run pytest tests/test_config.py::test_base_yaml_loads_typed   # single test
 docker compose up -d qdrant ; uv run pytest -m integration       # tests that need live services (excluded by default)
-uv run ruff check . ; uv run ruff format .     # lint/format
-# Planned, not built yet (eval harness lands in M1 step 1.10):
-uv run python -m eval.harness --config configs/ablations/hybrid_rerank.yaml --set golden --out eval/results/
-uv run python -m eval.harness --config configs/base.yaml --set smoke   # 20-question CI gate
-uv run python -m eval.report --runs eval/results/*
+uv run ruff check . ; uv run ruff format .     # lint/format (line length 120)
+
+# Corpus pipeline (each step idempotent / re-runnable)
+uv run python -m cleanair.ingest.download      # manifest -> data/raw/<doc_id>.pdf, sha256 written back
+uv run python -m cleanair.ingest.parse [doc_id ...] [--outline]   # -> data/processed/<doc_id>.jsonl (slow: OCR)
+uv run python -m cleanair.ingest.clean         # -> data/processed/clean/ (fast, always re-cleans everything)
+uv run python -m cleanair.ingest.chunk --config configs/ablations/naive.yaml   # -> data/processed/chunks/<chunk_set>.jsonl
+uv run python -m cleanair.ingest.embed --chunks data/processed/chunks/fixed-500-50.jsonl   # 4060: ~70 s
+uv run python -m cleanair.ingest.index --config configs/ablations/naive.yaml   # -> Qdrant <chunk_set>__<embedder>
+
+# Ask / evaluate
+uv run python -m cleanair.ask "question" --config configs/ablations/diag_threshold_gate.yaml
+uv run python -m eval.harness --config configs/ablations/naive.yaml --set golden            # retrieval only, no LLM
+uv run python -m eval.harness --config <cfg> --set smoke --generate [--limit N]            # + synthesis + judge
+uv run python -m eval.report --runs eval/results/*_golden                                  # comparison table
+uv run python -m eval.threshold --run eval/results/<rerank run> --min-keep 0.95           # pick rerank threshold
 ```
+
+- **LLM quota (2026-10-05):** the Gemini key is FREE tier, 20 requests/day *per model* (see `docs/LLM_LIMITS.md`).
+  Don't burn it on smoke tests. Prefer retrieval-only evals; use `--limit` for generation checks; rotate models.
+- **Models in the HF cache:** `BAAI/bge-m3` and `BAAI/bge-reranker-v2-m3`. The laptop's HF downloads can stall;
+  if they do, fetch on the cluster login node and `scp` the file, verifying its SHA-256 against the HF etag first.
+- **Cluster:** `cluster/setup_env.sh` and `cluster/job_embed.sh` are verified up to submission. Read the
+  `kss-hpc-cluster` skill first. Slurm was rejecting every GPU job with `InvalidAccount` on 2026-10-05 (TODO T0.6).
+- **Golden set:** `eval/golden/questions.jsonl`. Relevance = evidence `[[{doc_id, quote}, alt...], ...]`
+  (AND of OR-groups), matched by `eval.metrics.covers`, not by chunk ids. Every quote must be verbatim in
+  `data/processed/clean/<doc_id>.jsonl`; check with `eval.metrics.norm` before adding items.
 
 ## Architecture (big picture, see SPEC.md §4)
 
 - **Offline:** `data/manifest.csv` → download (sha256, idempotent) → parse (PyMuPDF; Docling for tables; OCR when
   a page has <50 chars) → clean → chunk → embed → Qdrant (dense + sparse, payload indexes). Station CSV/API →
-  validate → DuckDB `data/aq.duckdb`.
+  validate → DuckDB `data/aq.duckdb`. Built: everything up to Qdrant, in `src/cleanair/ingest/`. The parse output
+  is never modified; clean writes a separate copy.
+- **Retrieval as built** (`src/cleanair/retrieval/`): `PipelineRetriever.rank()` does embed → dense/sparse search
+  (Qdrant filter applied inside the search) → fusion (🧠) → rerank (`gate`/`filter` threshold) → MMR.
+  `finalize()` does top-k → small-to-big → lost-in-the-middle. Eval scores `rank()`, generation uses `retrieve()`.
+  An empty result means "insufficient evidence", and synthesis then answers not-found without calling the LLM.
 - **Online:** guardrails → condense (when there's history) → **router** (policy / data / mixed / out_of_scope) →
   policy path (dense + sparse → RRF → cross-encoder rerank with threshold → top-k) and/or data path (text-to-SQL
   → sqlglot validate → read-only execute → repair ≤2) → grounded synthesis → citation check → SSE stream.

@@ -1,0 +1,5 @@
+# A2 — A1 + bge-m3 sparse + reciprocal rank fusion (needs 🧠 rrf).
+name: A2-hybrid
+chunker: {type: structure, max_tokens: 400, overlap: 60}
+retrieval: {dense: true, sparse: true, fusion: rrf, rrf_k: 60, rerank: false, k_final: 5, current_only: false}
+routing: {router: none}

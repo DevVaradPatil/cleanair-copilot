@@ -1,0 +1,5 @@
+# A0 — SPEC §10.4: fixed chunks, dense-only top-5, no rerank, no router, no filters.
+name: A0-naive
+chunker: {type: fixed, max_tokens: 500, overlap: 50}
+retrieval: {dense: true, sparse: false, rerank: false, k_final: 5, current_only: false}
+routing: {router: none}

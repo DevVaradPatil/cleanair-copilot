@@ -1,0 +1,5 @@
+# D2 (diagnostic) — A0 + cross-encoder rerank of the dense top 30. Isolates the reranker's effect without fusion.
+name: D2-dense-rerank
+chunker: {type: fixed, max_tokens: 500, overlap: 50}
+retrieval: {dense: true, sparse: false, rerank: true, rerank_candidates: 30, rerank_threshold: null, k_final: 5, current_only: false}
+routing: {router: none}

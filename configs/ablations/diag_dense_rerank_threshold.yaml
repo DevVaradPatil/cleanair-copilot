@@ -1,0 +1,5 @@
+# D4 (diagnostic) — D3 + rerank threshold in FILTER mode (drops each chunk below it); 0.6370 (from eval.threshold on the D3 run, >= 95% answerable kept).
+name: D4-dense-rerank-current-threshold
+chunker: {type: fixed, max_tokens: 500, overlap: 50}
+retrieval: {dense: true, sparse: false, rerank: true, rerank_candidates: 30, rerank_threshold: 0.6370, k_final: 5, current_only: true, rerank_threshold_mode: filter}
+routing: {router: none}

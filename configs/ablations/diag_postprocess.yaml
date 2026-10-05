@@ -1,0 +1,5 @@
+# D5 (diagnostic) — D4 + MMR (lambda 0.7) + lost-in-the-middle ordering. Small-to-big is a no-op on fixed chunks (no parents).
+name: D5-postprocess
+chunker: {type: fixed, max_tokens: 500, overlap: 50}
+retrieval: {dense: true, sparse: false, rerank: true, rerank_candidates: 30, rerank_threshold: 0.6370, k_final: 5, current_only: true, mmr: true, mmr_lambda: 0.7, reorder: true, rerank_threshold_mode: gate}
+routing: {router: none}

@@ -1,0 +1,37 @@
+name: D4-dense-rerank-current-threshold
+chunker:
+  type: fixed
+  max_tokens: 500
+  overlap: 50
+embedder:
+  model: BAAI/bge-m3
+  max_length: 1024
+retrieval:
+  dense: true
+  dense_k: 50
+  sparse: false
+  sparse_k: 50
+  fusion: rrf
+  rrf_k: 60
+  alpha: 0.5
+  rerank: true
+  rerank_model: BAAI/bge-reranker-v2-m3
+  rerank_candidates: 30
+  rerank_threshold: 0.637
+  rerank_threshold_mode: filter
+  k_final: 5
+  mmr: false
+  mmr_lambda: 0.7
+  small_to_big: false
+  small_to_big_max_tokens: 1200
+  reorder: false
+  current_only: true
+routing:
+  router: none
+  condense: false
+generation:
+  model: gemini/gemini-3.8-flash
+  fallback_model: gemini/gemini-3.6-flash
+  temperature: 0.0
+  max_output_tokens: 8192
+  citation_check: false

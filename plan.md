@@ -46,30 +46,35 @@ Step 0.4 comes this early on purpose: if the ablation toggles live in config fro
 |---|---|---|
 | 1.1 ✅ | `data/manifest.csv` with the §5.1 columns. Claude drafts candidate rows, Varad verifies URLs, dates and terms (👤 T1.1, T1.2) | ≥ 40 verified documents |
 | 1.2 ✅ | `ingest/download.py`: reads the manifest, writes `sha256`, skips unchanged files | Re-running it is a no-op (test) |
-| 1.3 🟡 | `ingest/parse.py`: PyMuPDF with pages and heading detection, OCR fallback when a page has < 50 chars (👤 T1.3) | Parser comparison on 5 hard documents logged in DECISIONS (👤 T1.4) |
+| 1.3 ✅ | `ingest/parse.py`: PyMuPDF with pages and heading detection, OCR fallback when a page has < 50 chars (👤 T1.3) | Parser comparison on 5 hard documents logged in DECISIONS (👤 T1.4) |
 | 1.4 ✅ | `ingest/clean.py`: strips repeated headers and footers, NFC, keeps Devanagari intact | Tests on synthetic pages |
-| 1.5 | `fixed_chunker(size=500, overlap=50)` (the A0 baseline, not 🧠) | Tests: sizes and overlap |
-| 1.6 | `ingest/embed.py` and `ingest/index.py`: one embedder (decision: bge-m3 vs e5), collection metadata records the model and its version | Filtered search test passes |
-| 1.7 | `retrieval/dense.py` and the `Retriever` protocol / `RetrievedChunk` (§7.2) | Returns chunks for a query |
-| 1.8 | LLM access via LiteLLM, plus a minimal grounded synthesis with `[chunk_id]` citations and a not-found path (👤 T0.4) | CLI demo answers one policy question with citations |
-| 1.9 | Golden set v0: 60 questions (policy + unanswerable). Claude drafts them, **Varad checks every answer against the source** (👤 T1.5) | `eval/golden/questions.jsonl` with chunk IDs |
-| 1.10 | `eval/harness.py` + `metrics.py`: recall@k, MRR, nDCG, uncalibrated faithfulness judge | **A0 report** in `eval/results/` |
+| 1.5 ✅ | `fixed_chunker(size=500, overlap=50)` (the A0 baseline, not 🧠) | Tests: sizes and overlap |
+| 1.6 ✅ | `ingest/embed.py` and `ingest/index.py`: one embedder (decision: bge-m3 vs e5), collection metadata records the model and its version | Filtered search test passes |
+| 1.7 ✅ | `retrieval/dense.py` and the `Retriever` protocol / `RetrievedChunk` (§7.2) | Returns chunks for a query |
+| 1.8 ✅ | LLM access via LiteLLM, plus a minimal grounded synthesis with `[chunk_id]` citations and a not-found path (👤 T0.4) | CLI demo answers one policy question with citations |
+| 1.9 🟡 | Golden set v0: 60 questions (policy + unanswerable). Claude drafts them, **Varad checks every answer against the source** (👤 T1.5) | `eval/golden/questions.jsonl` with chunk IDs |
+| 1.10 🟡 | `eval/harness.py` + `metrics.py`: recall@k, MRR, nDCG, uncalibrated faithfulness judge | **A0 report** in `eval/results/` |
 
 Note: M1 faithfulness numbers come from a judge that hasn't been calibrated yet. Label them that way until M4.
 
 ## M2: Better retrieval (days 5–8)
 
+> **Status 2026-10-05:** everything except the 🧠 pieces is built and measured. ✅ done · 🟡 done but waiting on a
+> manual item (T1.5 golden check; T0.5 billing for generation evals; T2.2 your insights) · 🧠⏳ interface + spec
+> tests ready, your implementation pending. A1–A3 runs are one command each after 🧠 (see TODO).
+> Diagnostics D1–D6 (no 🧠 needed) are in README; D6 = dense + rerank + filter + gate reaches recall@5 0.865.
+
 **Learn:** structure-aware chunking, BM25, RRF, cross-encoders, filters (Guide 16 §4–5, Guide 17 §5–6, §11).
 
 | # | Step | Done when |
 |---|---|---|
-| 2.1 | 🧠 Structure-aware chunker: Claude scaffolds the interface and tests on synthetic documents, Varad implements it | Tests green, no chunk over the embedder's max length → **A1 run** |
-| 2.2 | `retrieval/sparse.py` (Qdrant sparse or rank-bm25, a logged decision) | Sparse top-50 works |
-| 2.3 | 🧠 `retrieval/fusion.py`: RRF (k = 60) and weighted min–max fusion. Claude writes hand-computed tests, Varad implements | RRF test (1,3) → 1/61 + 1/63 passes → **A2 run** |
-| 2.4 | `retrieval/rerank.py`: cross-encoder with a relevance threshold and an "insufficient evidence" signal (👤 T2.1) | Threshold chosen from data, not guessed → **A3 run** |
-| 2.5 | `retrieval/filters.py`: `is_current`, city, jurisdiction | Test: an out-of-filter chunk is never returned |
-| 2.6 | Small-to-big parents, MMR (λ = 0.7), lost-in-the-middle ordering (all behind config flags, measured in A5) | Unit tests |
-| 2.7 | README results table v1, plus `docs/LEARNING_LOG.md` with one insight per step (👤 T2.2) | — |
+| 2.1 🧠⏳ | 🧠 Structure-aware chunker: Claude scaffolds the interface and tests on synthetic documents, Varad implements it | Tests green, no chunk over the embedder's max length → **A1 run** |
+| 2.2 ✅ | `retrieval/sparse.py` (Qdrant sparse or rank-bm25, a logged decision) | Sparse top-50 works |
+| 2.3 🧠⏳ | 🧠 `retrieval/fusion.py`: RRF (k = 60) and weighted min–max fusion. Claude writes hand-computed tests, Varad implements | RRF test (1,3) → 1/61 + 1/63 passes → **A2 run** |
+| 2.4 ✅ | `retrieval/rerank.py`: cross-encoder with a relevance threshold and an "insufficient evidence" signal (👤 T2.1) | Threshold chosen from data, not guessed → **A3 run** |
+| 2.5 ✅ | `retrieval/filters.py`: `is_current`, city, jurisdiction | Test: an out-of-filter chunk is never returned |
+| 2.6 ✅ | Small-to-big parents, MMR (λ = 0.7), lost-in-the-middle ordering (all behind config flags, measured in A5) | Unit tests |
+| 2.7 🟡 | README results table v1, plus `docs/LEARNING_LOG.md` with one insight per step (👤 T2.2) | — |
 
 ## M3: Data path + routing (days 9–12)
 

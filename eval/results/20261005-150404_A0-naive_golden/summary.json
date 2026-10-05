@@ -1,0 +1,127 @@
+{
+ "recall@1": {
+  "mean": 0.3438,
+  "ci95": [
+   0.2188,
+   0.4792
+  ],
+  "n": 48
+ },
+ "recall@3": {
+  "mean": 0.6354,
+  "ci95": [
+   0.5,
+   0.7604
+  ],
+  "n": 48
+ },
+ "recall@5": {
+  "mean": 0.6979,
+  "ci95": [
+   0.5729,
+   0.8229
+  ],
+  "n": 48
+ },
+ "recall@10": {
+  "mean": 0.7708,
+  "ci95": [
+   0.6562,
+   0.8854
+  ],
+  "n": 48
+ },
+ "mrr": {
+  "mean": 0.5087,
+  "ci95": [
+   0.3972,
+   0.6208
+  ],
+  "n": 48
+ },
+ "ndcg@5": {
+  "mean": 0.5399,
+  "ci95": [
+   0.4271,
+   0.6496
+  ],
+  "n": 48
+ },
+ "faithfulness": null,
+ "must_include_ok": null,
+ "false_not_found": null,
+ "not_found_correct": null,
+ "abstain_unanswerable": {
+  "mean": 0.0,
+  "ci95": [
+   0.0,
+   0.0
+  ],
+  "n": 15
+ },
+ "abstain_answerable": {
+  "mean": 0.0,
+  "ci95": [
+   0.0,
+   0.0
+  ],
+  "n": 48
+ },
+ "by_category": {
+  "policy_fact": {
+   "recall@5": {
+    "mean": 0.775,
+    "ci95": [
+     0.65,
+     0.9
+    ],
+    "n": 40
+   },
+   "mrr": {
+    "mean": 0.5646,
+    "ci95": [
+     0.4446,
+     0.6808
+    ],
+    "n": 40
+   },
+   "n": 40
+  },
+  "policy_multi": {
+   "recall@5": {
+    "mean": 0.3125,
+    "ci95": [
+     0.0625,
+     0.625
+    ],
+    "n": 8
+   },
+   "mrr": {
+    "mean": 0.2292,
+    "ci95": [
+     0.0417,
+     0.4792
+    ],
+    "n": 8
+   },
+   "n": 8
+  },
+  "unanswerable": {
+   "recall@5": null,
+   "mrr": null,
+   "n": 15
+  }
+ },
+ "retrieval_latency_s": {
+  "p50": 0.019,
+  "p95": 0.041
+ },
+ "errors": 0,
+ "config": "A0-naive",
+ "set": "golden",
+ "n": 63,
+ "generate": false,
+ "collection": "fixed-500-50__bge-m3",
+ "judge_model": null,
+ "limit": null
+}

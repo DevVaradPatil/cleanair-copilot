@@ -56,10 +56,7 @@ def clean_prose(text: str) -> str:
 def clean_table(md: str) -> str:
     rows = []
     for line in md.splitlines():
-        cells = [
-            re.sub(r"\s+", " ", c.replace("<br>", " ").replace("**", "")).strip()
-            for c in line.split("|")[1:-1]
-        ]
+        cells = [re.sub(r"\s+", " ", c.replace("<br>", " ").replace("**", "")).strip() for c in line.split("|")[1:-1]]
         if cells and all(SEPARATOR_CELL.match(c) for c in cells):
             rows.append(line.strip())
             continue

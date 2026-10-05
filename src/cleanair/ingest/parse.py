@@ -75,9 +75,7 @@ def _page_items(page: pymupdf.Page, lang: str, tessdata: str | None) -> list[dic
     if len(page.get_text().strip()) >= OCR_MIN_CHARS:
         tables = [t for t in page.find_tables().tables if t.row_count >= 2 and t.col_count >= 2]
         rects = [t.bbox for t in tables]
-        items = [
-            {**b, "ocr": False} for b in _raw_blocks(page) if not any(_inside(b["bbox"], r) for r in rects)
-        ]
+        items = [{**b, "ocr": False} for b in _raw_blocks(page) if not any(_inside(b["bbox"], r) for r in rects)]
         for t in tables:
             items.append({"kind": "table", "text": t.to_markdown().strip(), "bbox": t.bbox, "ocr": False})
         return sorted(items, key=lambda i: (round(i["bbox"][1]), i["bbox"][0]))

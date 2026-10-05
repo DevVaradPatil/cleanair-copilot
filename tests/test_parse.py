@@ -39,9 +39,7 @@ def test_bigger_heading_gets_higher_level(tmp_path):
 def test_long_numbered_sentence_is_not_a_heading(tmp_path):
     def build(doc):
         page = doc.new_page()
-        page.insert_textbox(
-            pymupdf.Rect(72, 72, 520, 200), "1. This Act may be called the Air Act.", fontsize=11
-        )
+        page.insert_textbox(pymupdf.Rect(72, 72, 520, 200), "1. This Act may be called the Air Act.", fontsize=11)
         page.insert_textbox(pymupdf.Rect(72, 220, 520, 400), BODY, fontsize=11)
 
     blocks = parse_pdf(make_pdf(tmp_path / "b.pdf", build), "doc-b")

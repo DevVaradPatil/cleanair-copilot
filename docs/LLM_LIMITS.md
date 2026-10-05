@@ -1,5 +1,12 @@
 # LLM rate limits
 
+> **Correction (2026-10-05, observed from API errors):** the key in `.env` is on the **free tier**, not the tier in
+> the table below. Free tier = **20 requests/day per model** for every Flash and Flash-Lite model we tried
+> (`GenerateRequestsPerDayPerProjectPerModel-FreeTier`, quotaValue 20), and **0** for Pro models.
+> `gemini-2.5-flash` / `gemini-2.5-pro` return 404 "no longer available to new users", even though `ListModels`
+> shows them. Working ids (2026-10-05): gemini-3.8-flash, 3.7-flash (often 503), 3.6-flash, 3.5-flash,
+> 3.5-flash-lite, 3.1-flash-lite, 3-flash-preview. TODO T0.5: enable billing so the table below applies.
+
 Gemini API limits for Varad's key, copied from the AI Studio rate-limit page on 2026-10-05.
 Limits change with tier and over time, so re-check the dashboard before planning a large eval run.
 

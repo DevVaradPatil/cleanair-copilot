@@ -1,0 +1,19 @@
+# A3 — A2 + cross-encoder rerank of the top 30 + relevance threshold + is_current filter.
+# rerank_threshold must come from THIS pipeline's scores (structure chunks + hybrid shift the cross-encoder's
+# score distribution; D3's 0.637 doesn't transfer). Two passes: run with null, then
+#   uv run python -m eval.threshold --run eval/results/<that run> --min-keep 0.95
+# set the printed value here, and re-run.
+name: A3-hybrid-rerank
+chunker: {type: structure, max_tokens: 400, overlap: 60}
+retrieval:
+  dense: true
+  sparse: true
+  fusion: rrf
+  rrf_k: 60
+  rerank: true
+  rerank_candidates: 30
+  rerank_threshold: null
+  rerank_threshold_mode: gate
+  k_final: 5
+  current_only: true
+routing: {router: none}
