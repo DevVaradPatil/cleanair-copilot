@@ -44,9 +44,9 @@ Step 0.4 comes this early on purpose: if the ablation toggles live in config fro
 
 | # | Step | Done when |
 |---|---|---|
-| 1.1 🟡 | `data/manifest.csv` with the §5.1 columns. Claude drafts candidate rows, Varad verifies URLs, dates and terms (👤 T1.1, T1.2) | ≥ 40 verified documents |
-| 1.2 | `ingest/download.py`: reads the manifest, writes `sha256`, skips unchanged files | Re-running it is a no-op (test) |
-| 1.3 | `ingest/parse.py`: PyMuPDF with pages and heading detection, OCR fallback when a page has < 50 chars (👤 T1.3) | Parser comparison on 5 hard documents logged in DECISIONS (👤 T1.4) |
+| 1.1 ✅ | `data/manifest.csv` with the §5.1 columns. Claude drafts candidate rows, Varad verifies URLs, dates and terms (👤 T1.1, T1.2) | ≥ 40 verified documents |
+| 1.2 ✅ | `ingest/download.py`: reads the manifest, writes `sha256`, skips unchanged files | Re-running it is a no-op (test) |
+| 1.3 🟡 | `ingest/parse.py`: PyMuPDF with pages and heading detection, OCR fallback when a page has < 50 chars (👤 T1.3) | Parser comparison on 5 hard documents logged in DECISIONS (👤 T1.4) |
 | 1.4 | `ingest/clean.py`: strips repeated headers and footers, NFC, keeps Devanagari intact | Tests on synthetic pages |
 | 1.5 | `fixed_chunker(size=500, overlap=50)` (the A0 baseline, not 🧠) | Tests: sizes and overlap |
 | 1.6 | `ingest/embed.py` and `ingest/index.py`: one embedder (decision: bge-m3 vs e5), collection metadata records the model and its version | Filtered search test passes |

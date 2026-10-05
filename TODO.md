@@ -11,15 +11,20 @@ Secrets go **only** in `.env`. Never paste them into chat or commit them.
 - [x] **T0.4** LLM provider: **Gemini**, key in `.env` as `GEMINI_API_KEY`. Limits are in `docs/LLM_LIMITS.md`. Still to do: set a spend limit in the Google AI Studio / Cloud billing dashboard.
 
 ## M1: Corpus + baseline
-- [ ] **T1.1** Review the draft `data/manifest.csv` (47 rows, all URLs from official portals, 45 verified to download as PDFs). For each row:
-  check the title and publisher; fill the blank `published_on` dates from the document's first page; confirm `is_current` / `superseded_by`.
-  Specific doubts: (a) `ncap-funds-guidelines-amended` and `svs-ranking-2022`, which I marked as superseded based on their titles alone;
-  (b) `cap-kanpur` (0.2 MB) and `cap-lucknow` (0.1 MB) are suspiciously small, so check they're the full plans and not cover letters;
-  (c) `naqi-2014` is CPCB's 'About AQI' PDF: is it the full 2014 AQI report with breakpoints?
-  Gaps worth adding (couldn't find stable official URLs): the CAQM Act 2021, the Delhi Winter Action Plan, an updated Mumbai plan (MPCB/BMC), the UP State Action Plan, Hindi editions of NCAP/AQI, NGT orders in O.A. 681/2018.
-- [ ] **T1.2** Check each site's terms of use. Note anything that can't be redistributed (those raw files stay out of git anyway).
-- [ ] **T1.3** Install **Tesseract OCR** for Windows, with the Hindi (`hin`) language data, and add it to PATH.
-- [ ] **T1.4** Hand-check the parser output on the 5 hardest documents: headings and tables correct?
+- [x] **T1.1** Manifest reviewed: accepted as a learning-project corpus, imperfect metadata included (2026-10-05). Added the CAQM Act 2021 (eGazette) and the MCGM Mumbai dust mitigation plan. 49 rows.
+  Still open, whenever convenient: fill blank `published_on` dates; find the Delhi Winter Action Plan, the UP State Action Plan, Hindi editions of NCAP/AQI.
+- [x] **T1.2** Terms of use: accepted. Raw files stay git-ignored; only the manifest and URLs are committed.
+- [ ] **T1.3** Tesseract 5 is installed, but only `eng` language data is present. For Hindi OCR, download `hin.traineddata` from https://github.com/tesseract-ocr/tessdata (the `tessdata` repo, about 2 MB)
+  into `C:\Program Files\Tesseract-OCR\tessdata\` (needs admin). Check with `tesseract --list-langs` (should list `hin`).
+- [ ] **T1.4** Hand-check the parser on the 5 hardest documents. Compare each outline against the PDF in `data/raw/`:
+  `uv run python -m cleanair.ingest.parse <doc_id> --outline` (and open `data/processed/<doc_id>.jsonl` for tables).
+  1. `grap-schedule-2026-09`: table-heavy (13 tables, 5 headings). Are all Stage I–IV actions inside the tables, with their stage label?
+  2. `naaqs-2009`: scanned bilingual gazette. Prose OCRs fine, the standards table is scrambled. (NCAP p24 and C&D-waste p48 carry the same table as clean text.)
+  3. `cap-delhi`: fully scanned, 84 OCR pages. Is the OCR text readable?
+  4. `ngt-oa681-kanpur-qpr`: mixed scan/text, 531 'headings', so there are probably many false positives.
+  5. `caqm-act-2021`: law layout with margin notes. Do the section titles come out as headings?
+  Write down what's wrong; it decides whether we need Docling (an architecture change → DECISIONS).
+- [ ] **T1.6** India Code (Air Act EN/HI) was returning 504 all day on 2026-10-05. Re-run `uv run python -m cleanair.ingest.download` later; it retries only the missing files.
 - [ ] **T1.5** Verify every golden-set reference answer (60) against the source document, and confirm the chunk IDs.
 - [ ] **T3.1 (start early)** Begin getting station data. See M3.
 
