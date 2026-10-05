@@ -46,6 +46,16 @@ def test_right_text_wrong_doc_is_not_relevant():
     assert m["recall@1"] == 0 and m["mrr"] == 0
 
 
+def test_results_match_is_order_and_name_insensitive_with_tolerance():
+    from eval.metrics import results_match
+
+    ref_cols, ref = ["city", "avg"], [["Delhi", 324.2], ["Kanpur", 210.04]]
+    assert results_match(ref_cols, ref, ["avg_aqi", "days", "city"], [[210.0, 88, "kanpur"], [324.24, 90, "Delhi"]])
+    assert not results_match(ref_cols, ref, ["city", "avg"], [["Delhi", 324.2]])  # missing a row
+    assert not results_match(ref_cols, ref, ["city", "avg"], [["Delhi", 324.2], ["Kanpur", 250.0]])  # wrong value
+    assert results_match(["n"], [[0]], ["severe_days"], [[0]])  # "zero days" is a real answer
+
+
 def test_bootstrap_ci_brackets_mean():
     mean, lo, hi = bootstrap_ci([0, 1, 1, 1, 0, 1, 1, 0, 1, 1])
     assert mean == pytest.approx(0.7) and lo < 0.7 < hi

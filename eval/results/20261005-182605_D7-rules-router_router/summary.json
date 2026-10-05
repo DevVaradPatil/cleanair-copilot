@@ -1,0 +1,39 @@
+{
+ "config": "D7-rules-router",
+ "router": "rules",
+ "route_accuracy": {
+  "mean": 0.8267,
+  "ci95": [
+   0.7667,
+   0.8867
+  ],
+  "n": 150
+ },
+ "language_accuracy": 0.9867,
+ "confusion (gold -> predicted)": {
+  "policy": {
+   "policy": 79,
+   "data": 0,
+   "mixed": 6,
+   "out_of_scope": 7
+  },
+  "data": {
+   "policy": 3,
+   "data": 32,
+   "mixed": 0,
+   "out_of_scope": 0
+  },
+  "mixed": {
+   "policy": 4,
+   "data": 5,
+   "mixed": 12,
+   "out_of_scope": 0
+  },
+  "out_of_scope": {
+   "policy": 1,
+   "data": 0,
+   "mixed": 0,
+   "out_of_scope": 1
+  }
+ }
+}

@@ -52,7 +52,15 @@ class RetrievalConfig(_Strict):
 
 class RoutingConfig(_Strict):
     router: Literal["none", "rules", "llm"] = "llm"  # "none" = policy path only (A0-A3)
+    model: str = "gemini/gemini-3.1-flash-lite"  # small model for routing (SPEC §16: cost)
     condense: bool = False
+
+
+class DataConfig(_Strict):
+    db_path: str = "data/aq.duckdb"
+    sql_max_repairs: int = 2  # SPEC §8.1 step 5
+    sql_timeout_s: float = 5.0
+    max_rows: int = 1000
 
 
 class GenerationConfig(_Strict):
@@ -69,6 +77,7 @@ class PipelineConfig(_Strict):
     embedder: EmbedderConfig = EmbedderConfig()
     retrieval: RetrievalConfig = RetrievalConfig()
     routing: RoutingConfig = RoutingConfig()
+    data: DataConfig = DataConfig()
     generation: GenerationConfig = GenerationConfig()
 
     @property

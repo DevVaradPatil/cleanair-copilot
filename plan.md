@@ -78,18 +78,22 @@ Note: M1 faithfulness numbers come from a judge that hasn't been calibrated yet.
 
 ## M3: Data path + routing (days 9–12)
 
+> **Status 2026-10-05:** data = CPCB daily AQI bulletins (3 years, 323 cities) in DuckDB; text-to-SQL, router (rules
+> + LLM), mixed path and pipeline built and unit-tested; golden set v1 = 150. Rules router measured (0.827).
+> ⏳ 3.8 (A4: SQL execution accuracy, LLM-router accuracy, end-to-end) waits for 🧠 3.4 validator + T0.5 billing.
+
 **Learn:** text-to-SQL, SQL safety, structured outputs, routing (Guide 14 §5, §7).
 
 | # | Step | Done when |
 |---|---|---|
-| 3.1 | Get station data for the 4 cities (CPCB export, OpenAQ, or the Kaggle fallback) (👤 T3.1, T3.2) | Raw files in `data/raw/` |
-| 3.2 | `data/schema.sql`, `data/load_stations.py`, `data/quality_report.py` | `aq.duckdb` rebuilds from a script, and the coverage report is generated |
-| 3.3 | `docs/DATA_DICTIONARY.md`: units, the city-AQI definition (👤 T3.3), known gaps | — |
-| 3.4 | 🧠 `sql/validate.py`: Claude writes the malicious and allowed SQL test list, Varad implements it with sqlglot | 100% of malicious tests rejected |
-| 3.5 | `sql/schema_context.py`, `text_to_sql.py` (`SQLPlan`), `execute.py` (read-only, timeout), repair loop (≤ 2), coverage check | Works end-to-end on a fixture DuckDB |
-| 3.6 | `routing/router.py`: keyword baseline + LLM structured output. The mixed route uses `asyncio.gather` | Router confusion matrix |
-| 3.7 | Golden set grows to 150: data, mixed, Hindi/Hinglish, red-team (👤 T3.4) | Every reference answer verified |
-| 3.8 | **A4 run**: SQL execution accuracy, router accuracy | Reported in the README table |
+| 3.1 ✅ | Get station data for the 4 cities (CPCB export, OpenAQ, or the Kaggle fallback) (👤 T3.1, T3.2) | Raw files in `data/raw/` |
+| 3.2 ✅ | `data/schema.sql`, `data/load_stations.py`, `data/quality_report.py` | `aq.duckdb` rebuilds from a script, and the coverage report is generated |
+| 3.3 ✅ | `docs/DATA_DICTIONARY.md`: units, the city-AQI definition (👤 T3.3), known gaps | — |
+| 3.4 🧠⏳ | 🧠 `sql/validate.py`: Claude writes the malicious and allowed SQL test list, Varad implements it with sqlglot | 100% of malicious tests rejected |
+| 3.5 ✅ | `sql/schema_context.py`, `text_to_sql.py` (`SQLPlan`), `execute.py` (read-only, timeout), repair loop (≤ 2), coverage check | Works end-to-end on a fixture DuckDB |
+| 3.6 ✅ | `routing/router.py`: keyword baseline + LLM structured output. The mixed route uses `asyncio.gather` | Router confusion matrix |
+| 3.7 🟡 | Golden set grows to 150: data, mixed, Hindi/Hinglish, red-team (👤 T3.4) | Every reference answer verified |
+| 3.8 ⏳ | **A4 run**: SQL execution accuracy, router accuracy | Reported in the README table |
 
 ## M4: Answer quality, safety, eval rigour (days 13–16)
 

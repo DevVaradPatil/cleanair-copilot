@@ -10,6 +10,7 @@ Run:
 """
 
 import argparse
+import hashlib
 import json
 import statistics
 import sys
@@ -22,12 +23,13 @@ import yaml
 from qdrant_client import QdrantClient
 
 from cleanair.config import load_config
-from cleanair.generation.synthesize import synthesize
+from cleanair.pipeline import Copilot
 from cleanair.retrieval.filters import filters_for
 from cleanair.retrieval.retriever import PipelineRetriever
 from cleanair.settings import Settings
+from cleanair.sql.execute import connect_readonly
 from eval.judge import faithfulness
-from eval.metrics import bootstrap_ci, norm, retrieval_metrics
+from eval.metrics import bootstrap_ci, norm, results_match, retrieval_metrics
 
 GOLDEN = Path("eval/golden/questions.jsonl")
 RETRIEVAL_KEYS = ("recall@1", "recall@3", "recall@5", "recall@10", "mrr", "ndcg@5")
@@ -38,44 +40,102 @@ def load_set(name: str) -> list[dict]:
     return items if name == "golden" else items[::3]  # smoke: every 3rd item, stratified by file order
 
 
-def evaluate_item(q: dict, retriever: PipelineRetriever, generate: bool, judge_model: str, gen_cfg) -> dict:
+def needs_retrieval(q: dict) -> bool:
+    """Retrieval metrics need evidence; abstention is only meaningful for unanswerable *policy* questions."""
+    return bool(q["evidence"]) or (not q["answerable"] and q["route"] != "data")
+
+
+def evaluate_item(q: dict, retriever: PipelineRetriever, generate: bool, judge_model: str, copilot: Copilot) -> dict:
     cfg = retriever.cfg
-    t0 = time.time()
-    ranked = retriever.rank(q["question"], filters_for(q["question"], cfg.retrieval.current_only))
     row = {
         "id": q["id"],
         "category": q["category"],
         "answerable": q["answerable"],
-        "retrieval_s": round(time.time() - t0, 3),
-        "abstained": not ranked,  # rerank threshold left nothing: "insufficient evidence" without any LLM call
-        "max_rerank": max((c.score_rerank for c in ranked if c.score_rerank is not None), default=None),
-        "top": [
-            (c.chunk_id, round(c.score_rerank if c.score_rerank is not None else c.score_fused, 4)) for c in ranked[:10]
-        ],
+        "language": q["language"],
+        "gold_route": q["route"],
     }
-    if q["answerable"]:
-        row.update(retrieval_metrics([{"doc_id": c.doc_id, "text": c.text} for c in ranked[:10]], q["evidence"]))
+    if needs_retrieval(q):
+        t0 = time.time()
+        ranked = retriever.rank(q["question"], filters_for(q["question"], cfg.retrieval.current_only))
+        row.update(
+            retrieval_s=round(time.time() - t0, 3),
+            abstained=not ranked,  # rerank threshold left nothing: "insufficient evidence" without any LLM call
+            top=[
+                (c.chunk_id, round(c.score_rerank if c.score_rerank is not None else c.score_fused, 4))
+                for c in ranked[:10]
+            ],
+        )
+        if q["evidence"]:
+            row.update(retrieval_metrics([{"doc_id": c.doc_id, "text": c.text} for c in ranked[:10]], q["evidence"]))
     if not generate:
         return row
 
-    context = retriever.finalize(ranked, cfg.retrieval.k_final)
-    answer, usage = synthesize(q["question"], context, gen_cfg)
+    answer, trace = copilot.answer(q["question"])  # the real pipeline: route -> policy/data -> synthesis
     row.update(
         answer=answer.answer,
         not_found=answer.not_found,
         citations=[c.chunk_id for c in answer.citations],
-        gen=usage,
+        route_pred=trace.route.route.value,
+        gen=trace.generation,
+        data_error=trace.data_error,
     )
+    if trace.data is not None:
+        row.update(sql=trace.data.sql, sql_error=trace.data.error, sql_attempts=trace.data.attempts)
+    if q.get("reference_sql"):
+        got = trace.data.result if trace.data else None
+        ref_cols, ref_rows = run_reference(q["reference_sql"], cfg.data.db_path)
+        row["sql_correct"] = bool(got) and results_match(ref_cols, ref_rows, got.columns, [list(r) for r in got.rows])
     if q["answerable"]:
         text = norm(answer.answer)
         row["must_include_ok"] = all(norm(m) in text for m in q["must_include"])
         row["false_not_found"] = answer.not_found
         if not answer.not_found:
-            score, raw, jusage = faithfulness(q["question"], answer.answer, context, judge_model)
+            score, raw, jusage = faithfulness(q["question"], answer.answer, trace.chunks, judge_model, trace.data)
             row.update(faithfulness=score, judge=raw, judge_usage=jusage)
     else:
         row["not_found_correct"] = answer.not_found
     return row
+
+
+def run_reference(sql: str, db_path: str) -> tuple[list, list]:
+    con = connect_readonly(Path(db_path))
+    try:
+        cur = con.execute(sql)
+        return [d[0] for d in cur.description], [list(r) for r in cur.fetchall()]
+    finally:
+        con.close()
+
+
+def evaluate_router(items: list[dict], copilot: Copilot) -> list[dict]:
+    rows = []
+    for q in items:
+        out, usage = copilot.route(q["question"])
+        rows.append(
+            {
+                "id": q["id"],
+                "category": q["category"],
+                "gold_route": q["route"],
+                "route_pred": out.route.value,
+                "route_ok": out.route.value == q["route"],
+                "language": q["language"],
+                "language_ok": out.language == q["language"],
+                "router_model": usage.get("model"),
+            }
+        )
+    return rows
+
+
+def router_summary(rows: list[dict]) -> dict:
+    labels = ["policy", "data", "mixed", "out_of_scope"]
+    confusion = {
+        g: {p: sum(r["gold_route"] == g and r["route_pred"] == p for r in rows) for p in labels} for g in labels
+    }
+    acc = bootstrap_ci([float(r["route_ok"]) for r in rows])
+    return {
+        "route_accuracy": {"mean": round(acc[0], 4), "ci95": [round(acc[1], 4), round(acc[2], 4)], "n": len(rows)},
+        "language_accuracy": round(sum(r["language_ok"] for r in rows) / len(rows), 4),
+        "confusion (gold -> predicted)": confusion,
+    }
 
 
 def summarize(rows: list[dict]) -> dict:
@@ -97,7 +157,11 @@ def summarize(rows: list[dict]) -> dict:
     s["by_category"] = {
         c: {"recall@5": ci("recall@5", rs), "mrr": ci("mrr", rs), "n": len(rs)} for c, rs in by_cat.items()
     }
-    lat = sorted(r["retrieval_s"] for r in rows if "error" not in r) or [0.0]
+    s["sql_execution_accuracy"] = ci("sql_correct")
+    routed = [r for r in rows if "route_pred" in r]
+    if routed:
+        s["route_accuracy"] = ci("route_ok", [{**r, "route_ok": r["route_pred"] == r["gold_route"]} for r in routed])
+    lat = sorted(r["retrieval_s"] for r in rows if "retrieval_s" in r and "error" not in r) or [0.0]
     s["retrieval_latency_s"] = {
         "p50": lat[len(lat) // 2],
         "p95": lat[min(len(lat) - 1, int(len(lat) * 0.95))],
@@ -134,6 +198,8 @@ def report_md(name: str, s: dict, n: int) -> str:
             "not_found_correct",
             "abstain_unanswerable",
             "abstain_answerable",
+            "sql_execution_accuracy",
+            "route_accuracy",
         )
     ]
     lines += ["", "| Category | n | recall@5 | MRR |", "|---|---|---|---|"]
@@ -161,30 +227,40 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--gen-model", help="override generation.model for this run")
     p.add_argument("--judge-model", default="gemini/gemini-3.1-flash-lite")
     p.add_argument("--limit", type=int, help="first N questions only (pipeline checks)")
+    p.add_argument("--router-only", action="store_true", help="evaluate only the config's router (route + language)")
     args = p.parse_args(argv)
     sys.stdout.reconfigure(encoding="utf-8")
 
     cfg = load_config(args.config)
-    gen_cfg = cfg.generation.model_copy(update={"model": args.gen_model}) if args.gen_model else cfg.generation
+    if args.gen_model:
+        cfg = cfg.model_copy(update={"generation": cfg.generation.model_copy(update={"model": args.gen_model})})
     items = load_set(args.set)[: args.limit]
-    run_dir = args.out / f"{datetime.now():%Y%m%d-%H%M%S}_{cfg.name}_{args.set}"
+    suffix = "router" if args.router_only else args.set
+    run_dir = args.out / f"{datetime.now():%Y%m%d-%H%M%S}_{cfg.name}_{suffix}"
     run_dir.mkdir(parents=True)
     (run_dir / "config.yaml").write_text(yaml.safe_dump(cfg.model_dump(), sort_keys=False), encoding="utf-8")
 
+    if args.router_only:
+        rows = evaluate_router(items, Copilot(cfg))
+        (run_dir / "items.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+        s = {"config": cfg.name, "router": cfg.routing.router, **router_summary(rows)}
+        (run_dir / "summary.json").write_text(json.dumps(s, indent=1), encoding="utf-8")
+        print(json.dumps(s, indent=1), "\n->", run_dir)
+        return 0
+
     retriever = PipelineRetriever(cfg, QdrantClient(url=Settings().qdrant_url))
+    copilot = Copilot(cfg, retriever)
     rows = []
     with open(run_dir / "items.jsonl", "w", encoding="utf-8") as f:
         for i, q in enumerate(items, start=1):
             try:
-                row = evaluate_item(q, retriever, args.generate, args.judge_model, gen_cfg)
+                row = evaluate_item(q, retriever, args.generate, args.judge_model, copilot)
             except Exception as e:  # one bad LLM response must not lose the whole run; it shows up in items.jsonl
                 row = {
                     "id": q["id"],
                     "category": q["category"],
                     "answerable": q["answerable"],
-                    "retrieval_s": 0.0,
-                    "abstained": False,
-                    "top": [],
+                    "gold_route": q["route"],
                     "error": f"{type(e).__name__}: {e}",
                 }
             rows.append(row)
@@ -194,6 +270,7 @@ def main(argv: list[str] | None = None) -> int:
 
     s = summarize(rows)
     s["errors"] = sum("error" in r for r in rows)
+    s["golden_sha256"] = hashlib.sha256(GOLDEN.read_bytes()).hexdigest()[:12]  # which question set produced this
     s.update(
         config=cfg.name,
         set=args.set,

@@ -1,0 +1,191 @@
+{
+ "recall@1": {
+  "mean": 0.2158,
+  "ci95": [
+   0.1368,
+   0.3
+  ],
+  "n": 95
+ },
+ "recall@3": {
+  "mean": 0.4,
+  "ci95": [
+   0.3053,
+   0.4895
+  ],
+  "n": 95
+ },
+ "recall@5": {
+  "mean": 0.4579,
+  "ci95": [
+   0.3632,
+   0.5579
+  ],
+  "n": 95
+ },
+ "recall@10": {
+  "mean": 0.5263,
+  "ci95": [
+   0.4263,
+   0.6263
+  ],
+  "n": 95
+ },
+ "mrr": {
+  "mean": 0.3307,
+  "ci95": [
+   0.2532,
+   0.4089
+  ],
+  "n": 95
+ },
+ "ndcg@5": {
+  "mean": 0.3457,
+  "ci95": [
+   0.267,
+   0.4258
+  ],
+  "n": 95
+ },
+ "faithfulness": null,
+ "must_include_ok": null,
+ "false_not_found": null,
+ "not_found_correct": null,
+ "abstain_unanswerable": {
+  "mean": 0.0,
+  "ci95": [
+   0.0,
+   0.0
+  ],
+  "n": 20
+ },
+ "abstain_answerable": {
+  "mean": 0.0,
+  "ci95": [
+   0.0,
+   0.0
+  ],
+  "n": 95
+ },
+ "by_category": {
+  "policy_fact": {
+   "recall@5": {
+    "mean": 0.775,
+    "ci95": [
+     0.65,
+     0.9
+    ],
+    "n": 40
+   },
+   "mrr": {
+    "mean": 0.5646,
+    "ci95": [
+     0.4446,
+     0.6808
+    ],
+    "n": 40
+   },
+   "n": 40
+  },
+  "policy_multi": {
+   "recall@5": {
+    "mean": 0.2667,
+    "ci95": [
+     0.1,
+     0.4667
+    ],
+    "n": 15
+   },
+   "mrr": {
+    "mean": 0.2206,
+    "ci95": [
+     0.0772,
+     0.4083
+    ],
+    "n": 15
+   },
+   "n": 15
+  },
+  "unanswerable": {
+   "recall@5": null,
+   "mrr": null,
+   "n": 16
+  },
+  "data": {
+   "recall@5": null,
+   "mrr": null,
+   "n": 29
+  },
+  "mixed": {
+   "recall@5": {
+    "mean": 0.15,
+    "ci95": [
+     0.0,
+     0.35
+    ],
+    "n": 20
+   },
+   "mrr": {
+    "mean": 0.06,
+    "ci95": [
+     0.0,
+     0.135
+    ],
+    "n": 20
+   },
+   "n": 20
+  },
+  "hindi": {
+   "recall@5": {
+    "mean": 0.3667,
+    "ci95": [
+     0.1333,
+     0.6
+    ],
+    "n": 15
+   },
+   "mrr": {
+    "mean": 0.2883,
+    "ci95": [
+     0.1083,
+     0.4883
+    ],
+    "n": 15
+   },
+   "n": 20
+  },
+  "redteam": {
+   "recall@5": {
+    "mean": 0.0,
+    "ci95": [
+     0.0,
+     0.0
+    ],
+    "n": 5
+   },
+   "mrr": {
+    "mean": 0.0,
+    "ci95": [
+     0.0,
+     0.0
+    ],
+    "n": 5
+   },
+   "n": 10
+  }
+ },
+ "sql_execution_accuracy": null,
+ "retrieval_latency_s": {
+  "p50": 0.037,
+  "p95": 0.065
+ },
+ "errors": 0,
+ "golden_sha256": "2a6c58b2bdfa",
+ "config": "A0-naive",
+ "set": "golden",
+ "n": 150,
+ "generate": false,
+ "collection": "fixed-500-50__bge-m3",
+ "judge_model": null,
+ "limit": null
+}

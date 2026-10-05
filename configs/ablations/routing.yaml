@@ -1,0 +1,16 @@
+# A4 — A3 + router (LLM) + text-to-SQL + mixed path (SPEC §10.4). Needs 🧠 structure_chunker, rrf, validate.
+# rerank_threshold: copy the value derived for A3 (two-pass, see hybrid_rerank.yaml).
+name: A4-routing
+chunker: {type: structure, max_tokens: 400, overlap: 60}
+retrieval:
+  dense: true
+  sparse: true
+  fusion: rrf
+  rrf_k: 60
+  rerank: true
+  rerank_candidates: 30
+  rerank_threshold: null
+  rerank_threshold_mode: gate
+  k_final: 5
+  current_only: true
+routing: {router: llm, model: gemini/gemini-3.1-flash-lite}

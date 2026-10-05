@@ -1,38 +1,45 @@
-"""Ask one question from the terminal: retrieve -> synthesize -> print the answer with its sources.
+"""Ask one question from the terminal: route -> policy/data paths -> answer, with sources, SQL and coverage.
 
-Run: uv run python -m cleanair.ask "What is the 24-hour PM2.5 standard?" --config configs/ablations/naive.yaml
+Run: uv run python -m cleanair.ask "How many days was Kanpur's AQI Severe in winter 2024-25?" \
+       --config configs/ablations/diag_router_rules.yaml
 """
 
 import argparse
 import sys
 from pathlib import Path
 
-from qdrant_client import QdrantClient
-
 from cleanair.config import load_config
-from cleanair.generation.synthesize import synthesize
-from cleanair.retrieval.filters import filters_for
-from cleanair.retrieval.retriever import PipelineRetriever
-from cleanair.settings import Settings
+from cleanair.pipeline import Copilot
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description="Ask Clean Air Copilot a policy question.")
+    p = argparse.ArgumentParser(description="Ask Clean Air Copilot a question.")
     p.add_argument("question")
-    p.add_argument("--config", type=Path, default=Path("configs/ablations/naive.yaml"))
+    p.add_argument("--config", type=Path, default=Path("configs/ablations/diag_router_rules.yaml"))
     args = p.parse_args(argv)
     sys.stdout.reconfigure(encoding="utf-8")  # Windows consoles default to cp1252: µ and Devanagari break
 
-    cfg = load_config(args.config)
-    retriever = PipelineRetriever(cfg, QdrantClient(url=Settings().qdrant_url))
-    chunks = retriever.retrieve(args.question, filters_for(args.question, cfg.retrieval.current_only))
-    answer, usage = synthesize(args.question, chunks, cfg.generation)
-
+    answer, trace = Copilot(load_config(args.config)).answer(args.question)
+    r = trace.route
+    print(f"[route: {r.route.value}, language: {r.language}, cities: {r.cities}, time: {r.time_range}]\n")
     print(answer.answer, "\n")
     for c in answer.citations:
-        print(f'  {c.marker}  "{c.quote}"')
-    print("\nretrieved:", ", ".join(f"{c.chunk_id} ({c.score_fused:.3f})" for c in chunks))
-    print("usage:", usage)
+        print(f"  {c.marker}  {c.quote or ''}")
+    if trace.chunks:
+        print("\nretrieved:", ", ".join(c.chunk_id for c in trace.chunks))
+    if trace.data:
+        d = trace.data
+        print(f"\nSQL ({d.attempts} attempt(s)): {d.sql or '-'}")
+        if d.result:
+            print(d.result.to_markdown(10))
+        for c in d.coverage:
+            print(
+                f"coverage {c['city']}: {c['days_reported']}/{c['days_in_range']} days, "
+                f"stations {c['station_coverage_pct']}%"
+            )
+    if trace.data_error:
+        print("\ndata path unavailable:", trace.data_error)
+    print("\nusage:", trace.generation)
     return 0
 
 

@@ -17,10 +17,11 @@ there as they finish. **`TODO.md`** holds every manual task for Varad (keys, acc
 🧠 implementations). Whenever a step needs something you can't do yourself, add it to `TODO.md` with a `T<phase>.<n>`
 ID, mark it 👤 in `plan.md`, and tell Varad.
 
-**Current milestone: M2, blocked only on Varad's 🧠 work (as of 2026-10-05).** M0 and M1 are built; A0 is
-measured (recall@5 0.698). Every non-🧠 piece of M2 is built and measured through diagnostic configs D1–D6
-(see README). Waiting on: 🧠 `structure_chunker` and `rrf`/`weighted` (then run A1–A3), T1.5 (golden-set check),
-and T0.5 (Gemini billing; generation evals need it). Update this line when a milestone's acceptance criteria pass.
+**Current milestone: M3 built; M2 and M3 acceptance blocked only on Varad's 🧠 work + LLM billing (2026-10-05).**
+M0–M1 done. M2: everything non-🧠 built and measured with diagnostic configs D1–D6. M3: CPCB bulletin data in
+DuckDB, text-to-SQL, router (rules + LLM), mixed path, `cleanair.pipeline.Copilot`, golden set v1 (150). Waiting on:
+🧠 `structure_chunker`, `rrf`/`weighted`, `validate` (then A1–A4), T0.5 (Gemini billing), T1.5/T3.4 (golden checks).
+Update this line when a milestone's acceptance criteria pass.
 
 ## Working agreement (learning mode is ON, SPEC.md §0.1)
 
@@ -69,8 +70,14 @@ uv run python -m cleanair.ingest.chunk --config configs/ablations/naive.yaml   #
 uv run python -m cleanair.ingest.embed --chunks data/processed/chunks/fixed-500-50.jsonl   # 4060: ~70 s
 uv run python -m cleanair.ingest.index --config configs/ablations/naive.yaml   # -> Qdrant <chunk_set>__<embedder>
 
+# Monitoring data (CPCB daily AQI bulletins -> DuckDB)
+uv run python -m cleanair.data.bulletins --start 2023-10-01 --end <date>   # downloads missing days only, parses all
+uv run python -m cleanair.data.load            # rebuilds data/aq.duckdb (canonicalises city-name case)
+uv run python -m cleanair.data.quality_report  # -> docs/DATA_QUALITY.md
+
 # Ask / evaluate
-uv run python -m cleanair.ask "question" --config configs/ablations/diag_threshold_gate.yaml
+uv run python -m cleanair.ask "question" --config configs/ablations/diag_router_rules.yaml   # full pipeline
+uv run python -m eval.harness --config configs/ablations/diag_router_rules.yaml --router-only   # route accuracy, free
 uv run python -m eval.harness --config configs/ablations/naive.yaml --set golden            # retrieval only, no LLM
 uv run python -m eval.harness --config <cfg> --set smoke --generate [--limit N]            # + synthesis + judge
 uv run python -m eval.report --runs eval/results/*_golden                                  # comparison table

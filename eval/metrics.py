@@ -67,6 +67,47 @@ def retrieval_metrics(ranked: list[dict], evidence: list[list[dict]], ks: tuple[
     return out
 
 
+def _cell(v) -> object:
+    if isinstance(v, bool) or v is None:
+        return v
+    if isinstance(v, int | float):
+        return round(float(v), 1)
+    return str(v).strip().lower()
+
+
+def _same_column(a: list, b: list, tol: float) -> bool:
+    a, b = sorted(map(_cell, a), key=str), sorted(map(_cell, b), key=str)
+    if len(a) != len(b):
+        return False
+    for x, y in zip(a, b, strict=True):
+        if isinstance(x, float) and isinstance(y, float):
+            if abs(x - y) > max(tol, 0.01 * abs(x)):
+                return False
+        elif x != y:
+            return False
+    return True
+
+
+def results_match(ref_cols: list, ref_rows: list, got_cols: list, got_rows: list, tol: float = 0.15) -> bool:
+    """SQL execution accuracy (SPEC §10.3): compare result SETS, not SQL strings.
+
+    Same number of rows, and every reference column's values (as a multiset, order-insensitive, numbers within
+    tolerance) appear as some column of the generated result. Extra generated columns (e.g. a days count the
+    prompt asks for) and different column names are fine.
+    """
+    if len(ref_rows) != len(got_rows):
+        return False
+    got_columns = [[r[j] for r in got_rows] for j in range(len(got_cols))]
+    used: set[int] = set()
+    for i in range(len(ref_cols)):
+        ref_col = [r[i] for r in ref_rows]
+        j = next((j for j, g in enumerate(got_columns) if j not in used and _same_column(ref_col, g, tol)), None)
+        if j is None:
+            return False
+        used.add(j)
+    return True
+
+
 def bootstrap_ci(values: list[float], n: int = 2000, alpha: float = 0.05, seed: int = 0) -> tuple[float, float, float]:
     """Mean and percentile bootstrap (1 - alpha) CI over questions."""
     if not values:

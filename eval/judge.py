@@ -3,7 +3,7 @@
 Reasoning before verdict; the judge sees only the sources the generator saw, not the reference answer.
 """
 
-from cleanair.generation.prompts import format_sources
+from cleanair.generation.prompts import user_message
 from cleanair.generation.synthesize import complete_json
 from cleanair.retrieval.schemas import RetrievedChunk
 
@@ -16,10 +16,13 @@ Return JSON: {"claims": [{"claim": str, "reason": str, "supported": bool}]}"""
 
 
 def faithfulness(
-    question: str, answer: str, chunks: list[RetrievedChunk], model: str
+    question: str, answer: str, chunks: list[RetrievedChunk], model: str, data_result=None
 ) -> tuple[float | None, dict, dict]:
-    """Returns (supported share or None if the answer makes no claims, raw judge output, usage)."""
-    user = f"SOURCES:\n{format_sources(chunks)}\n\nQUESTION: {question}\n\nANSWER: {answer}"
+    """Returns (supported share or None if the answer makes no claims, raw judge output, usage).
+
+    The judge sees exactly what the generator saw: policy chunks and, for data/mixed answers, the SQL result.
+    """
+    user = f"SOURCES AND QUESTION:\n{user_message(question, chunks, data_result)}\n\nANSWER: {answer}"
     data, usage = complete_json(model, JUDGE_SYSTEM, user, max_tokens=8192)
     claims = data.get("claims", [])
     if not claims:

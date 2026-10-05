@@ -43,3 +43,20 @@ repeat the schedule's text outranked the current schedule.
 retrieval metrics (it only changes the prompt); small-to-big is a no-op until the structure chunker creates parents.
 **Prompt:** why might MMR not help when k=5 and near-duplicates are rare? What would you measure instead?
 **Insight:** _…_
+
+## M3 — Data path, router, golden set v1 (2026-10-05)
+
+**Measured (golden v1, 150 questions, retrieval only):** recall@5 by category for D3 (dense + rerank + current
+filter): policy facts 0.95, multi-fact 0.50, Hindi/Hinglish 0.60, mixed 0.25, red-team 0.40. Overall 0.647
+(v0's 0.885 was on easier, English-only, policy-only questions — not comparable).
+- Cross-lingual: 10 of 13 Hindi/Hinglish translations retrieve exactly as well as their English source.
+- The rerank gate tuned on English v0 (0.637) abstains on **8 of 15 Hindi** questions: cross-encoder scores are
+  lower for Hindi-query / English-passage pairs.
+- Mixed questions are retrieved with the whole question (data clauses included); the LLM router's
+  policy_subquery should help — **hypothesis, untested** (needs quota).
+- Rules router: route accuracy 0.827 [0.77, 0.89]; misroutes = policy questions without obvious domain words
+  (called out-of-scope), "highest/compare" in policy questions (called mixed), Hinglish shopping not caught.
+**Prompts:** why does one global threshold fail for a bilingual system, and what would you calibrate instead?
+Why not fix the rules router's 26 misroutes? What does "result-set match" accept that string match wouldn't?
+Why keep a category-only row (NULL AQI) instead of dropping it?
+**Insight:** _…_

@@ -82,18 +82,26 @@ def complete_json(
         raise ValueError(f"{used} returned invalid JSON (finish_reason={resp.choices[0].finish_reason})") from e
 
 
-def synthesize(question: str, chunks: list[RetrievedChunk], cfg: GenerationConfig) -> tuple[Answer, dict]:
-    if not chunks:  # retrieval said "insufficient evidence": don't let the LLM improvise
-        return Answer(answer=NOT_FOUND, citations=[], not_found=True, route=Route.POLICY), {"model": None}
+def synthesize(
+    question: str,
+    chunks: list[RetrievedChunk],
+    cfg: GenerationConfig,
+    data_result=None,
+    route: Route = Route.POLICY,
+) -> tuple[Answer, dict]:
+    """Grounded answer over policy chunks and/or a data-path result (cited as [SQL])."""
+    has_data = data_result is not None and data_result.result is not None
+    if not chunks and not has_data:  # "insufficient evidence": don't let the LLM improvise
+        return Answer(answer=NOT_FOUND, citations=[], not_found=True, route=route), {"model": None}
     data, usage = complete_json(
         cfg.model,
         SYSTEM_PROMPT,
-        user_message(question, chunks),
+        user_message(question, chunks, data_result),
         cfg.temperature,
         cfg.max_output_tokens,
         fallback=cfg.fallback_model,
     )
-    provided = {c.chunk_id for c in chunks}
+    provided = {c.chunk_id for c in chunks} | ({"SQL"} if has_data else set())
     raw = data.get("citations") or []
     citations = []
     for c in raw if isinstance(raw, list) else []:
@@ -106,7 +114,7 @@ def synthesize(question: str, chunks: list[RetrievedChunk], cfg: GenerationConfi
         answer=str(data.get("answer", "")),
         citations=citations,
         not_found=bool(data.get("not_found", False)),
-        route=Route.POLICY,
+        route=route,
         assumptions=[assumptions] if isinstance(assumptions, str) else [str(a) for a in assumptions],
     )
     usage["dropped_citations"] = (len(raw) if isinstance(raw, list) else 0) - len(citations)

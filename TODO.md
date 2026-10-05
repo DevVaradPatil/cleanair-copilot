@@ -54,11 +54,19 @@ Secrets go **only** in `.env`. Never paste them into chat or commit them.
   then `uv run python -m eval.report --runs eval/results/*golden` and update the README table.
 
 ## M3: Data + routing
-- [ ] **T3.1** Get 2–3 years of daily readings for Kanpur, Lucknow, Delhi and Mumbai from the CPCB CAAQMS portal (manual export). If that stalls: create an **OpenAQ** account and API key (into `.env`), or a **Kaggle** account plus `kaggle.json` for the fallback dataset.
-- [ ] **T3.2** Record the data source, terms and retrieval date in DECISIONS.
-- [ ] **T3.3** Decide the city-AQI definition (max over stations vs mean) and confirm it in `docs/DATA_DICTIONARY.md`.
-- [ ] **T3.4** Verify the 90 new golden questions (data / mixed / Hindi / red-team).
-- [ ] Implement 🧠 SQL validator (plan 3.4).
+- [ ] **T3.1 (now optional)** v1 data = CPCB daily AQI **bulletins** (city AQI, 2023-10 → 2026-10), already loaded.
+  Station-level **pollutant concentrations** (PM2.5 µg/m³ etc.) still need the CCR portal export (login) or an
+  OpenAQ API key. Until then the system answers "not available" for concentration questions, which is by design.
+- [x] **T3.2** Source, terms and retrieval range recorded in DECISIONS (2026-10-05). Check CPCB's terms of use yourself if you plan to redistribute the CSV.
+- [x] **T3.3** Settled for the bulletin data: city AQI = CPCB's published value (see `docs/DATA_DICTIONARY.md`). Reopen if station data arrives.
+- [ ] **T3.4** Verify the 87 new golden items in `eval/golden/questions.jsonl` (ids `dat-`, `mix-`, `mul-009..015`,
+  `hin-`, `red-`). The Hindi/Hinglish wording especially; the data reference results were spot-checked, not all.
+- [ ] **🧠 3.4** Implement `validate` in `src/cleanair/sql/validate.py`. The spec is `tests/test_sql_validate.py` (39 xfail
+  cases: 28 attacks, 9 legitimate queries, plus LIMIT handling). Then the data path is live:
+  `uv run python -m cleanair.ask "How many days was Kanpur's AQI Severe in winter 2024-25?"`
+- [ ] **After T0.5 (billing) + 🧠 3.4:** run the A4-style end-to-end eval (router + SQL + mixed, ~150 questions × 3–5
+  LLM calls): `uv run python -m eval.harness --config configs/ablations/diag_router_rules.yaml --set golden --generate`,
+  and the LLM-router accuracy: `uv run python -m eval.harness --config configs/ablations/routing.yaml --router-only`.
 
 ## M4: Quality + eval
 - [ ] **T4.1** Hand-label 80–100 answers (correct? faithful?) into `eval/golden/human_labels.jsonl`.
