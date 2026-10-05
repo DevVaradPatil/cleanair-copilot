@@ -29,12 +29,12 @@ Dec 2026 placements. The day numbers below are working days, not calendar days.
 | # | Step | Done when |
 |---|---|---|
 | 0.1 ✅ | `git init`, plus a GitHub repo (👤 T0.3) | First commit pushed |
-| 0.2 | `pyproject.toml` via `uv init`: Python 3.11+, dev deps pytest + ruff only | `uv sync` works |
-| 0.3 | `src/cleanair/settings.py` (pydantic-settings), `.env.example` | Settings load from `.env`, and a test proves a missing required key fails loudly |
-| 0.4 | Pipeline config schema: a Pydantic model for `configs/base.yaml`, with every ablation switch (§10.4) stubbed as a field | Loading `base.yaml` gives a typed object |
-| 0.5 | `docker-compose.yml` with Qdrant, plus a health-check script | `docker compose up qdrant` and the health check passes (👤 T0.2) |
-| 0.6 | pre-commit with ruff, and a trivial pytest | `uv run pytest` is green |
-| 0.7 | `docs/DECISIONS.md` updated, CLAUDE.md milestone set to M1 | — |
+| 0.2 ✅ | `pyproject.toml` via `uv init`: Python 3.11+, dev deps pytest + ruff only | `uv sync` works |
+| 0.3 ✅ | `src/cleanair/settings.py` (pydantic-settings), `.env.example` | Settings load from `.env`, and a test proves a missing required key fails loudly |
+| 0.4 ✅ | Pipeline config schema: a Pydantic model for `configs/base.yaml`, with every ablation switch (§10.4) stubbed as a field | Loading `base.yaml` gives a typed object |
+| 0.5 ✅ | `docker-compose.yml` with Qdrant, plus a health-check script | `docker compose up qdrant` and the health check passes (👤 T0.2) |
+| 0.6 ✅ | pre-commit with ruff, and a trivial pytest | `uv run pytest` is green |
+| 0.7 ✅ | `docs/DECISIONS.md` updated, CLAUDE.md milestone set to M1 | — |
 
 Step 0.4 comes this early on purpose: if the ablation toggles live in config from day one, no feature ends up hardcoded.
 

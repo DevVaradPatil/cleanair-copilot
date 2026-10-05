@@ -1,0 +1,14 @@
+repos:
+  - repo: local
+    hooks:
+      # Runs the ruff pinned in uv.lock, so hooks and `uv run ruff` never disagree.
+      - id: ruff
+        name: ruff check
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types: [python]

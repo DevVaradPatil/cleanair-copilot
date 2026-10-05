@@ -1,0 +1,32 @@
+# Default pipeline. Ablation configs in configs/ablations/ override these switches (SPEC.md §10.4).
+name: base
+
+chunker:
+  type: structure     # fixed | structure
+  max_tokens: 400
+  overlap: 60
+
+embedder:
+  model: BAAI/bge-m3
+
+retrieval:
+  dense_k: 50
+  sparse: true
+  sparse_k: 50
+  fusion: rrf         # rrf | weighted
+  rrf_k: 60
+  alpha: 0.5
+  rerank: true
+  rerank_candidates: 30
+  rerank_threshold: null
+  k_final: 6
+  mmr: false
+  mmr_lambda: 0.7
+  small_to_big: false
+
+routing:
+  router: llm         # none | rules | llm
+  condense: false
+
+generation:
+  citation_check: false

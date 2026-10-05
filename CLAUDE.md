@@ -17,8 +17,9 @@ there as they finish. **`TODO.md`** holds every manual task for Varad (keys, acc
 🧠 implementations). Whenever a step needs something you can't do yourself, add it to `TODO.md` with a `T<phase>.<n>`
 ID, mark it 👤 in `plan.md`, and tell Varad.
 
-**Current milestone: M0 (setup).** No code exists yet. Only the folder skeleton from SPEC.md §4.2 is in place
-(empty dirs held by `.gitkeep`). Update this line when a milestone's acceptance criteria pass.
+**Current milestone: M1 (corpus + naive baseline).** M0 is done: uv project, `settings.py`, `config.py`
+with `configs/base.yaml`, Qdrant in Docker, and pytest + ruff + pre-commit. Update this line when a milestone's
+acceptance criteria pass.
 
 ## Working agreement (learning mode is ON, SPEC.md §0.1)
 
@@ -48,13 +49,17 @@ Explanations get exactly the length the learning-mode steps above ask for: no mo
 
 - Windows. Varad's terminals run **PowerShell 5.1**, so join commands with `;` and never `&&` or `||`.
 - Python 3.11+, managed with **uv**. Package lives at `src/cleanair/`. Eval code lives at `eval/` (run as module `eval.*`).
-- The commands below are **planned by the spec and don't work until M0 lands**. Check `pyproject.toml` before relying on them.
+- **Secrets vs experiments:** secrets and machine details go in `.env`, read by `cleanair.settings.Settings`.
+  Pipeline choices go in `configs/*.yaml`, read by `cleanair.config.load_config`, which rejects unknown keys.
+  A new ablation switch means a new field in `config.py`, never an `if` on a hardcoded constant.
+- Ruff excludes `*.md`, so it never reformats the code samples in the spec. Pre-commit runs ruff through `uv run`.
 
 ```bash
-uv run pytest                                  # must pass before declaring any step done
-uv run pytest tests/test_x.py::test_name       # single test
-uv run ruff check . ; uv run ruff format .     # lint/format (pre-commit runs ruff)
-docker compose up qdrant                       # local vector DB
+uv run pytest                                  # unit tests; must pass before declaring any step done
+uv run pytest tests/test_config.py::test_base_yaml_loads_typed   # single test
+docker compose up -d qdrant ; uv run pytest -m integration       # tests that need live services (excluded by default)
+uv run ruff check . ; uv run ruff format .     # lint/format
+# Planned, not built yet (eval harness lands in M1 step 1.10):
 uv run python -m eval.harness --config configs/ablations/hybrid_rerank.yaml --set golden --out eval/results/
 uv run python -m eval.harness --config configs/base.yaml --set smoke   # 20-question CI gate
 uv run python -m eval.report --runs eval/results/*

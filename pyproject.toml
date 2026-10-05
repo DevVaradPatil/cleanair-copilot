@@ -1,0 +1,38 @@
+[project]
+name = "cleanair"
+version = "0.1.0"
+description = "Bilingual RAG + text-to-SQL assistant for Indian air-quality policy and data"
+readme = "README.md"
+authors = [
+    { name = "DevVaradPatil", email = "varadapatil123@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.13.5",
+    "pydantic-settings>=2.15.0",
+    "pyyaml>=6.0.3",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.23,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.6.2",
+    "pytest>=9.1.1",
+    "ruff>=0.16.10",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration: needs running services (Qdrant); run with `pytest -m integration`"]
+addopts = "-m 'not integration'"
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+extend-exclude = ["*.md"]  # keep ruff off the spec and docs
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
