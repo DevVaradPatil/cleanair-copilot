@@ -1,4 +1,4 @@
-"""Specification for the 🧠 SQL validator (SPEC §8.1-8.2: 100% of malicious SQL rejected)."""
+"""🧠 SQL validator (SPEC §8.1-8.2: 100% of malicious SQL rejected, legitimate SQL passes with a LIMIT)."""
 
 import re
 from pathlib import Path
@@ -6,8 +6,6 @@ from pathlib import Path
 import pytest
 
 from cleanair.sql.validate import ALLOWED, SQLValidationError, validate
-
-brain = pytest.mark.xfail(raises=NotImplementedError, strict=True, reason="🧠 validate not implemented")
 
 MALICIOUS = [
     # not a single SELECT
@@ -57,27 +55,23 @@ ALLOWED_QUERIES = [
 ]
 
 
-@brain
 @pytest.mark.parametrize("sql", MALICIOUS)
 def test_malicious_sql_rejected(sql):
     with pytest.raises(SQLValidationError):
         validate(sql)
 
 
-@brain
 @pytest.mark.parametrize("sql", ALLOWED_QUERIES)
 def test_legitimate_sql_passes_and_gets_a_limit(sql):
     out = validate(sql)
     assert re.search(r"\bLIMIT\s+\d+", out, re.IGNORECASE)
 
 
-@brain
 def test_existing_limit_kept_and_large_limit_capped():
     assert re.search(r"LIMIT\s+10\b", validate("SELECT city FROM city_aqi_daily LIMIT 10"), re.I)
     assert re.search(r"LIMIT\s+1000\b", validate("SELECT city FROM city_aqi_daily LIMIT 50000"), re.I)
 
 
-@brain
 def test_error_message_explains_the_problem():
     with pytest.raises(SQLValidationError, match=r"(?i)users|not allowed|unknown"):
         validate("SELECT * FROM users")
@@ -90,3 +84,18 @@ def test_allow_list_matches_schema_sql():
         body = re.search(rf"CREATE TABLE {table} \((.*?)\n\);", schema, re.S).group(1)
         cols = {m.group(1) for m in re.finditer(r"^\s+(\w+)\s+[A-Z]", body, re.M)} - {"PRIMARY"}
         assert cols == ALLOWED[table], table
+
+
+def test_every_golden_reference_query_is_accepted():
+    """Realistic legitimate SQL: the validator must not be so strict that correct answers get blocked."""
+    import json
+
+    gold = Path(__file__).parent.parent / "eval/golden/questions.jsonl"
+    queries = [
+        q["reference_sql"]
+        for q in map(json.loads, gold.read_text(encoding="utf-8").splitlines())
+        if q.get("reference_sql")
+    ]
+    assert queries
+    for sql in queries:
+        validate(sql)

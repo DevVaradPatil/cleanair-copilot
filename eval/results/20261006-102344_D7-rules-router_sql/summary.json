@@ -1,0 +1,23 @@
+{
+ "config": "D7-rules-router",
+ "model": "gemini/gemini-3.5-flash-lite",
+ "n_scored": 17,
+ "n_llm_errors": 0,
+ "offset": 0,
+ "limit": 17,
+ "first_try": 14,
+ "repaired": 0,
+ "golden_sha256": "2a6c58b2bdfa",
+ "sql_execution_accuracy_strict": {
+  "mean": 0.8235,
+  "ci95": [
+   0.6471,
+   1.0
+  ]
+ },
+ "sql_execution_accuracy": {
+  "correct": 17,
+  "of": 17
+ },
+ "note": "Re-scored with the ranked/date-label equivalences (eval.metrics.results_match); strict kept for reference."
+}

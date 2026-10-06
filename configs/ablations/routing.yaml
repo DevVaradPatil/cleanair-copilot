@@ -1,5 +1,5 @@
 # A4 — A3 + router (LLM) + text-to-SQL + mixed path (SPEC §10.4). Needs 🧠 structure_chunker, rrf, validate.
-# rerank_threshold: copy the value derived for A3 (two-pass, see hybrid_rerank.yaml).
+# rerank_threshold: the value derived for A3 (eval.threshold on the A3 pass-1 run, >= 95% answerable kept).
 name: A4-routing
 chunker: {type: structure, max_tokens: 400, overlap: 60}
 retrieval:
@@ -9,7 +9,7 @@ retrieval:
   rrf_k: 60
   rerank: true
   rerank_candidates: 30
-  rerank_threshold: null
+  rerank_threshold: 0.1837
   rerank_threshold_mode: gate
   k_final: 5
   current_only: true

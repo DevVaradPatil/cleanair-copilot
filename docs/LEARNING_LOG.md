@@ -60,3 +60,15 @@ filter): policy facts 0.95, multi-fact 0.50, Hindi/Hinglish 0.60, mixed 0.25, re
 Why not fix the rules router's 26 misroutes? What does "result-set match" accept that string match wouldn't?
 Why keep a category-only row (NULL AQI) instead of dropping it?
 **Insight:** _…_
+
+## 2.1 / 2.3 / 3.4 — 🧠 components implemented (2026-10-06)
+
+**Measured:** A1 (structure chunks) 0.421 vs A0 0.458 recall@5 at k=5 (n.s.); at equal token budget +0.04 (n.s.).
+A3 (structure + hybrid + rerank + filter + gate) 0.621 vs D3 (fixed + dense + rerank + filter) 0.647: A3 wins on
+multi-fact (0.60 vs 0.50) and mixed (0.35 vs 0.25), loses on single facts (0.85 vs 0.95) and Hindi (0.40 vs 0.60).
+D8 (A3 minus sparse) refuted "sparse hurts Hindi". The gate for A3 had to fall to 0.184 to keep 95% of answerable
+questions once Hindi was included. Text-to-SQL 17/17 on a free-tier sample once the evaluator stopped penalising
+'2025-07' vs 7.
+**Prompts:** why can a better chunker lower recall@5? What's the right way to compare chunkers? Why did a fair-looking
+strict metric undercount correct SQL by 18%, and how do you loosen a metric without letting wrong answers through?
+**Insight:** _…_

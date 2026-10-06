@@ -12,6 +12,7 @@ Run:
 import argparse
 import hashlib
 import json
+import re
 import statistics
 import sys
 import time
@@ -26,8 +27,10 @@ from cleanair.config import load_config
 from cleanair.pipeline import Copilot
 from cleanair.retrieval.filters import filters_for
 from cleanair.retrieval.retriever import PipelineRetriever
+from cleanair.routing.router import route_rules
 from cleanair.settings import Settings
 from cleanair.sql.execute import connect_readonly
+from cleanair.sql.text_to_sql import answer_data
 from eval.judge import faithfulness
 from eval.metrics import bootstrap_ci, norm, results_match, retrieval_metrics
 
@@ -82,9 +85,9 @@ def evaluate_item(q: dict, retriever: PipelineRetriever, generate: bool, judge_m
     if trace.data is not None:
         row.update(sql=trace.data.sql, sql_error=trace.data.error, sql_attempts=trace.data.attempts)
     if q.get("reference_sql"):
-        got = trace.data.result if trace.data else None
-        ref_cols, ref_rows = run_reference(q["reference_sql"], cfg.data.db_path)
-        row["sql_correct"] = bool(got) and results_match(ref_cols, ref_rows, got.columns, [list(r) for r in got.rows])
+        row["sql_correct"] = sql_correct(
+            q["reference_sql"], cfg.data.db_path, trace.data.result if trace.data else None
+        )
     if q["answerable"]:
         text = norm(answer.answer)
         row["must_include_ok"] = all(norm(m) in text for m in q["must_include"])
@@ -95,6 +98,14 @@ def evaluate_item(q: dict, retriever: PipelineRetriever, generate: bool, judge_m
     else:
         row["not_found_correct"] = answer.not_found
     return row
+
+
+def sql_correct(reference_sql: str, db_path: str, got) -> bool:
+    if got is None:
+        return False
+    ref_cols, ref_rows = run_reference(reference_sql, db_path)
+    ranked = bool(re.search(r"\bLIMIT\s+\d+", reference_sql, re.IGNORECASE))  # a top-k reference
+    return results_match(ref_cols, ref_rows, got.columns, [list(r) for r in got.rows], ranked=ranked)
 
 
 def run_reference(sql: str, db_path: str) -> tuple[list, list]:
@@ -120,8 +131,42 @@ def evaluate_router(items: list[dict], copilot: Copilot) -> list[dict]:
                 "language": q["language"],
                 "language_ok": out.language == q["language"],
                 "router_model": usage.get("model"),
+                "fallback": usage.get("fallback"),
             }
         )
+    return rows
+
+
+def evaluate_sql(items: list[dict], cfg, sleep_s: float = 0.0) -> list[dict]:
+    """Text-to-SQL as a component (SPEC §10.1): data questions only, no synthesis or judge, ~1-3 LLM calls each.
+    Correct = result set matches the reference SQL's; for a data-unanswerable item, correct = declared unanswerable.
+    An LLM outage on one question is recorded as `llm_error` and excluded from accuracy (it says nothing about SQL)."""
+    rows = []
+    for q in items:
+        time.sleep(sleep_s)  # free tier: stay under the per-minute request cap
+        route = route_rules(q["question"])  # cities/time for coverage; routing quality is measured separately
+        try:
+            out = answer_data(q["question"], cfg, route)
+        except RuntimeError as e:  # complete_json gave up: quota / outage
+            rows.append({"id": q["id"], "category": q["category"], "llm_error": str(e)})
+            print(f"  {q['id']} LLM unavailable: {e}", flush=True)
+            continue
+        row = {
+            "id": q["id"],
+            "category": q["category"],
+            "sql": out.sql,
+            "attempts": out.attempts,
+            "error": out.error,
+            "unanswerable": out.unanswerable,
+            "models": [u.get("model") for u in out.usage],
+            "low_coverage": out.low_coverage,
+        }
+        if q.get("reference_sql"):
+            row["sql_correct"] = sql_correct(q["reference_sql"], cfg.data.db_path, out.result)
+        else:
+            row["sql_correct"] = out.unanswerable
+        rows.append(row)
+        print(f"  {q['id']} correct={row['sql_correct']} attempts={out.attempts} {out.error or ''}", flush=True)
     return rows
 
 
@@ -228,14 +273,22 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--judge-model", default="gemini/gemini-3.1-flash-lite")
     p.add_argument("--limit", type=int, help="first N questions only (pipeline checks)")
     p.add_argument("--router-only", action="store_true", help="evaluate only the config's router (route + language)")
+    p.add_argument("--sql-only", action="store_true", help="evaluate only text-to-SQL on the data questions")
+    p.add_argument("--sleep", type=float, default=0.0, help="seconds between questions (free-tier rate limits)")
+    p.add_argument("--offset", type=int, default=0, help="skip the first N questions (resume across quota days)")
+    p.add_argument("--stride", type=int, default=1, help="every Nth question: a small sample across all categories")
     args = p.parse_args(argv)
     sys.stdout.reconfigure(encoding="utf-8")
 
     cfg = load_config(args.config)
-    if args.gen_model:
-        cfg = cfg.model_copy(update={"generation": cfg.generation.model_copy(update={"model": args.gen_model})})
-    items = load_set(args.set)[: args.limit]
-    suffix = "router" if args.router_only else args.set
+    if args.gen_model:  # an explicit model for an eval run: no fallback, so one run never mixes two models
+        gen = cfg.generation.model_copy(update={"model": args.gen_model, "fallback_model": None})
+        cfg = cfg.model_copy(update={"generation": gen})
+    items = load_set(args.set)
+    if args.sql_only:
+        items = [q for q in items if q["category"] == "data" or (q["route"] == "data" and not q["answerable"])]
+    items = items[:: args.stride][args.offset :][: args.limit]
+    suffix = "router" if args.router_only else "sql" if args.sql_only else args.set
     run_dir = args.out / f"{datetime.now():%Y%m%d-%H%M%S}_{cfg.name}_{suffix}"
     run_dir.mkdir(parents=True)
     (run_dir / "config.yaml").write_text(yaml.safe_dump(cfg.model_dump(), sort_keys=False), encoding="utf-8")
@@ -243,7 +296,35 @@ def main(argv: list[str] | None = None) -> int:
     if args.router_only:
         rows = evaluate_router(items, Copilot(cfg))
         (run_dir / "items.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
-        s = {"config": cfg.name, "router": cfg.routing.router, **router_summary(rows)}
+        s = {
+            "config": cfg.name,
+            "router": cfg.routing.router,
+            "router_model": cfg.routing.model,
+            "stride": args.stride,
+            "fallbacks_to_rules": sum(r.get("fallback") == "rules" for r in rows),
+            **router_summary(rows),
+        }
+        (run_dir / "summary.json").write_text(json.dumps(s, indent=1), encoding="utf-8")
+        print(json.dumps(s, indent=1), "\n->", run_dir)
+        return 0
+
+    if args.sql_only:
+        rows = evaluate_sql(items, cfg, args.sleep)
+        (run_dir / "items.jsonl").write_text("".join(json.dumps(r, default=str) + "\n" for r in rows), "utf-8")
+        scored = [r for r in rows if "sql_correct" in r]
+        acc = bootstrap_ci([float(r["sql_correct"]) for r in scored])
+        s = {
+            "config": cfg.name,
+            "model": cfg.generation.model,
+            "n_scored": len(scored),
+            "n_llm_errors": len(rows) - len(scored),
+            "offset": args.offset,
+            "limit": args.limit,
+            "sql_execution_accuracy": {"mean": round(acc[0], 4), "ci95": [round(acc[1], 4), round(acc[2], 4)]},
+            "first_try": sum(r["attempts"] == 1 and r["sql_correct"] for r in scored),
+            "repaired": sum(r["attempts"] > 1 and r["sql_correct"] for r in scored),
+            "golden_sha256": hashlib.sha256(GOLDEN.read_bytes()).hexdigest()[:12],
+        }
         (run_dir / "summary.json").write_text(json.dumps(s, indent=1), encoding="utf-8")
         print(json.dumps(s, indent=1), "\n->", run_dir)
         return 0

@@ -3,7 +3,7 @@
 The phase-by-phase build plan, taken from SPEC.md §13 and broken into one-module steps.
 SPEC.md is still the source of truth for *what* to build. This file covers the *order*, and what counts as done.
 
-**Legend:** 🧠 = Varad writes the core logic, and Claude only scaffolds the interface and tests (§0.1).
+**Legend:** 🧠 = a part Varad must understand deeply: Claude implements it and explains it in `docs/BRAIN_NOTES.md`.
 👤 = a manual step for Varad, tracked in [TODO.md](TODO.md) under the ID shown.
 Each step follows explain → propose → implement → test, and its decisions go into `docs/DECISIONS.md`.
 
@@ -59,18 +59,16 @@ Note: M1 faithfulness numbers come from a judge that hasn't been calibrated yet.
 
 ## M2: Better retrieval (days 5–8)
 
-> **Status 2026-10-05:** everything except the 🧠 pieces is built and measured. ✅ done · 🟡 done but waiting on a
-> manual item (T1.5 golden check; T0.5 billing for generation evals; T2.2 your insights) · 🧠⏳ interface + spec
-> tests ready, your implementation pending. A1–A3 runs are one command each after 🧠 (see TODO).
-> Diagnostics D1–D6 (no 🧠 needed) are in README; D6 = dense + rerank + filter + gate reaches recall@5 0.865.
+> **Status 2026-10-06:** M2 complete. A0–A3 measured on golden v1 (A3 recall@5 0.621; best diagnostic D3 0.647),
+> 🧠 parts implemented and explained in `docs/BRAIN_NOTES.md`. 🟡 = done, waiting only on your T2.2 insights.
 
 **Learn:** structure-aware chunking, BM25, RRF, cross-encoders, filters (Guide 16 §4–5, Guide 17 §5–6, §11).
 
 | # | Step | Done when |
 |---|---|---|
-| 2.1 🧠⏳ | 🧠 Structure-aware chunker: Claude scaffolds the interface and tests on synthetic documents, Varad implements it | Tests green, no chunk over the embedder's max length → **A1 run** |
+| 2.1 ✅ | 🧠 Structure-aware chunker (Claude implements; explained in docs/BRAIN_NOTES.md) | Tests green, no chunk over the embedder's max length → **A1 run** |
 | 2.2 ✅ | `retrieval/sparse.py` (Qdrant sparse or rank-bm25, a logged decision) | Sparse top-50 works |
-| 2.3 🧠⏳ | 🧠 `retrieval/fusion.py`: RRF (k = 60) and weighted min–max fusion. Claude writes hand-computed tests, Varad implements | RRF test (1,3) → 1/61 + 1/63 passes → **A2 run** |
+| 2.3 ✅ | 🧠 `retrieval/fusion.py`: RRF (k = 60) and weighted min–max fusion, hand-computed tests (BRAIN_NOTES) | RRF test (1,3) → 1/61 + 1/63 passes → **A2 run** |
 | 2.4 ✅ | `retrieval/rerank.py`: cross-encoder with a relevance threshold and an "insufficient evidence" signal (👤 T2.1) | Threshold chosen from data, not guessed → **A3 run** |
 | 2.5 ✅ | `retrieval/filters.py`: `is_current`, city, jurisdiction | Test: an out-of-filter chunk is never returned |
 | 2.6 ✅ | Small-to-big parents, MMR (λ = 0.7), lost-in-the-middle ordering (all behind config flags, measured in A5) | Unit tests |
@@ -80,7 +78,8 @@ Note: M1 faithfulness numbers come from a judge that hasn't been calibrated yet.
 
 > **Status 2026-10-05:** data = CPCB daily AQI bulletins (3 years, 323 cities) in DuckDB; text-to-SQL, router (rules
 > + LLM), mixed path and pipeline built and unit-tested; golden set v1 = 150. Rules router measured (0.827).
-> ⏳ 3.8 (A4: SQL execution accuracy, LLM-router accuracy, end-to-end) waits for 🧠 3.4 validator + T0.5 billing.
+> 3.8 🟡: SQL validator done; text-to-SQL 17/17 and LLM router 0.89 measured on free-tier samples. The full
+> 150-question end-to-end A4 run (answers + faithfulness) waits for T0.5 billing.
 
 **Learn:** text-to-SQL, SQL safety, structured outputs, routing (Guide 14 §5, §7).
 
@@ -89,11 +88,11 @@ Note: M1 faithfulness numbers come from a judge that hasn't been calibrated yet.
 | 3.1 ✅ | Get station data for the 4 cities (CPCB export, OpenAQ, or the Kaggle fallback) (👤 T3.1, T3.2) | Raw files in `data/raw/` |
 | 3.2 ✅ | `data/schema.sql`, `data/load_stations.py`, `data/quality_report.py` | `aq.duckdb` rebuilds from a script, and the coverage report is generated |
 | 3.3 ✅ | `docs/DATA_DICTIONARY.md`: units, the city-AQI definition (👤 T3.3), known gaps | — |
-| 3.4 🧠⏳ | 🧠 `sql/validate.py`: Claude writes the malicious and allowed SQL test list, Varad implements it with sqlglot | 100% of malicious tests rejected |
+| 3.4 ✅ | 🧠 `sql/validate.py`: sqlglot AST allow-list, 28 attacks + 55 legitimate queries tested (BRAIN_NOTES) | 100% of malicious tests rejected |
 | 3.5 ✅ | `sql/schema_context.py`, `text_to_sql.py` (`SQLPlan`), `execute.py` (read-only, timeout), repair loop (≤ 2), coverage check | Works end-to-end on a fixture DuckDB |
 | 3.6 ✅ | `routing/router.py`: keyword baseline + LLM structured output. The mixed route uses `asyncio.gather` | Router confusion matrix |
 | 3.7 🟡 | Golden set grows to 150: data, mixed, Hindi/Hinglish, red-team (👤 T3.4) | Every reference answer verified |
-| 3.8 ⏳ | **A4 run**: SQL execution accuracy, router accuracy | Reported in the README table |
+| 3.8 🟡 | **A4 run**: SQL execution accuracy, router accuracy | Reported in the README table |
 
 ## M4: Answer quality, safety, eval rigour (days 13–16)
 
@@ -101,7 +100,7 @@ Note: M1 faithfulness numbers come from a judge that hasn't been calibrated yet.
 
 | # | Step | Done when |
 |---|---|---|
-| 4.1 | 🧠 `generation/citations.py` citation checker: Claude scaffolds it and the tests, Varad implements | Unsupported sentences get removed or flagged |
+| 4.1 | 🧠 `generation/citations.py` citation checker (Claude implements; explained in BRAIN_NOTES) | Unsupported sentences get removed or flagged |
 | 4.2 | `routing/condense.py`: turns a follow-up into a standalone query | Tests on multi-turn fixtures |
 | 4.3 | `guardrails/input.py` and `output.py`: injection neutralising, length limits, poisoned-document eval collection | Injection success rate measured |
 | 4.4 | Judge calibration: hand-label 80–100 answers (👤 T4.1), judge from a different model family (👤 T4.2), iterate until κ ≥ 0.6 | κ reported |

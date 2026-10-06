@@ -1,0 +1,5 @@
+# D9 (diagnostic) — the LLM router (gemini-3.1-flash-lite, few-shot) for --router-only evaluation; retrieval as D7.
+name: D9-llm-router
+chunker: {type: fixed, max_tokens: 500, overlap: 50}
+retrieval: {dense: true, sparse: false, rerank: true, rerank_candidates: 30, rerank_threshold: 0.6370, rerank_threshold_mode: gate, k_final: 5, current_only: true}
+routing: {router: llm, model: gemini/gemini-3.1-flash-lite}

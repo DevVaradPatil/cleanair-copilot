@@ -56,6 +56,27 @@ def test_results_match_is_order_and_name_insensitive_with_tolerance():
     assert results_match(["n"], [[0]], ["severe_days"], [[0]])  # "zero days" is a real answer
 
 
+def test_ranked_superset_only_for_top_k_and_only_with_the_right_winner():
+    from eval.metrics import results_match
+
+    ref = [["Delhi", 324.2]]  # SELECT ... ORDER BY a DESC LIMIT 1
+    full_ranking = [["Delhi", 324.2, 120], ["Lucknow", 172.7, 121]]
+    assert results_match(["city", "a"], ref, ["city", "avg", "days"], full_ranking, ranked=True)
+    assert not results_match(["city", "a"], ref, ["city", "avg", "days"], full_ranking)  # not a top-k reference
+    wrong_winner = [["Lucknow", 172.7, 121], ["Delhi", 324.2, 120]]
+    assert not results_match(["city", "a"], ref, ["city", "avg", "days"], wrong_winner, ranked=True)
+
+
+def test_year_month_labels_match_year_or_month_references():
+    from eval.metrics import results_match
+
+    assert results_match(["m"], [[7]], ["month", "avg"], [["2025-07", 78.4]])
+    assert results_match(
+        ["y", "a"], [[2024, 374.4], [2025, 354.1]], ["month", "avg"], [["2024-11", 374.4], ["2025-11", 354.1]]
+    )
+    assert not results_match(["m"], [[7]], ["month"], [["2025-08"]])  # wrong month still fails
+
+
 def test_bootstrap_ci_brackets_mean():
     mean, lo, hi = bootstrap_ci([0, 1, 1, 1, 0, 1, 1, 0, 1, 1])
     assert mean == pytest.approx(0.7) and lo < 0.7 < hi

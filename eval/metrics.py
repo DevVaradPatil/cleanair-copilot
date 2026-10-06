@@ -88,20 +88,46 @@ def _same_column(a: list, b: list, tol: float) -> bool:
     return True
 
 
-def results_match(ref_cols: list, ref_rows: list, got_cols: list, got_rows: list, tol: float = 0.15) -> bool:
+YEAR_MONTH = re.compile(r"^(\d{4})-(\d{2})(?:-\d{2})?$")
+
+
+def _readings(col: list) -> list[list]:
+    """A generated column as-is, plus — if every value is a 'YYYY-MM[-DD]' label — its years and its months, so
+    `'2025-07'` can match a reference that returned month 7 (same answer, different label)."""
+    out = [col]
+    parts = [YEAR_MONTH.match(str(v)) for v in col]
+    if col and all(parts):
+        out += [[int(p.group(1)) for p in parts], [int(p.group(2)) for p in parts]]
+    return out
+
+
+def results_match(
+    ref_cols: list, ref_rows: list, got_cols: list, got_rows: list, tol: float = 0.15, ranked: bool = False
+) -> bool:
     """SQL execution accuracy (SPEC §10.3): compare result SETS, not SQL strings.
 
     Same number of rows, and every reference column's values (as a multiset, order-insensitive, numbers within
     tolerance) appear as some column of the generated result. Extra generated columns (e.g. a days count the
     prompt asks for) and different column names are fine.
+    ranked=True (the reference is a top-k query, i.e. has a LIMIT): the generated result may rank MORE rows, as long
+    as its first k rows match — "which city was highest?" answered with the full ranking, winner first, is right.
     """
+    if ranked and len(got_rows) > len(ref_rows):
+        got_rows = got_rows[: len(ref_rows)]
     if len(ref_rows) != len(got_rows):
         return False
     got_columns = [[r[j] for r in got_rows] for j in range(len(got_cols))]
     used: set[int] = set()
     for i in range(len(ref_cols)):
         ref_col = [r[i] for r in ref_rows]
-        j = next((j for j, g in enumerate(got_columns) if j not in used and _same_column(ref_col, g, tol)), None)
+        j = next(
+            (
+                j
+                for j, g in enumerate(got_columns)
+                if j not in used and any(_same_column(ref_col, reading, tol) for reading in _readings(g))
+            ),
+            None,
+        )
         if j is None:
             return False
         used.add(j)

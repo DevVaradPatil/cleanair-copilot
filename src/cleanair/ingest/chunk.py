@@ -2,7 +2,7 @@
 
 Two chunkers (SPEC §6):
 - fixed_chunker: a sliding token window over the whole document, blind to structure (the A0 baseline).
-- structure_chunker: 🧠 Varad implements -- headings -> paragraphs -> sentences, heading_path, parents.
+- structure_chunker: 🧠 headings -> paragraphs -> sentences, heading_path, parents (docs/BRAIN_NOTES.md).
   tests/test_chunk.py is its specification.
 Token counts use the embedder's own tokenizer, so `max_tokens` means what the embedder actually sees.
 
@@ -11,6 +11,7 @@ Run: uv run python -m cleanair.ingest.chunk --config configs/ablations/naive.yam
 
 import argparse
 import json
+import re
 import statistics
 from collections.abc import Callable
 from pathlib import Path
@@ -60,21 +61,152 @@ def fixed_chunker(
     return chunks
 
 
+SENTENCE_END = re.compile(r"(?<=[.!?।;])\s+")  # '।' = Devanagari danda (Hindi full stop)
+PATH_SEP = " › "
+HEADING_MAX_CHARS = 80  # long false-positive "headings" would bloat every chunk's contextual header
+
+
+def _sections(blocks: list[dict]) -> list[dict]:
+    """Group body blocks under the heading stack in force. A heading at level L closes every open heading at L or
+    deeper (so 'Stage IV' replaces 'Stage III' but keeps 'Revised GRAP'). Each heading starts a new section."""
+    stack: list[tuple[int, str]] = []
+    sections: list[dict] = [{"path": "", "blocks": []}]
+    for b in blocks:
+        if b["kind"] == "heading":
+            level = b.get("level") or 1
+            while stack and stack[-1][0] >= level:
+                stack.pop()
+            stack.append((level, re.sub(r"\s+", " ", b["text"])[:HEADING_MAX_CHARS].strip()))
+            sections.append({"path": PATH_SEP.join(t for _, t in stack), "blocks": []})
+        else:
+            sections[-1]["blocks"].append(b)
+    return [s for s in sections if s["blocks"]]  # a heading followed directly by a heading has no body
+
+
+def _split_words(text: str, count_tokens: CountTokens, max_tokens: int) -> list[str]:
+    """Last resort for a single sentence/row longer than max_tokens: greedy word windows."""
+    pieces, cur = [], []
+    for word in text.split():
+        if cur and count_tokens(" ".join([*cur, word])) > max_tokens:
+            pieces.append(" ".join(cur))
+            cur = []
+        cur.append(word)
+    return pieces + ([" ".join(cur)] if cur else [])
+
+
+def _table_units(text: str, count_tokens: CountTokens, max_tokens: int) -> list[str]:
+    """Split a markdown table between rows, repeating its header (first row + separator) on every piece, so each
+    piece stays self-describing: '|PM2.5 µg/m3|24 Hours|60|' is useless without the column names."""
+    lines = text.splitlines()
+    has_sep = len(lines) > 1 and set(lines[1].replace("|", "").strip()) <= set("-: ")
+    header = lines[:2] if has_sep else lines[:1]
+    rows = lines[len(header) :]
+    pieces, cur = [], list(header)
+    for row in rows:
+        if count_tokens("\n".join([*cur, row])) > max_tokens and len(cur) > len(header):
+            pieces.append("\n".join(cur))
+            cur = list(header)
+        if count_tokens("\n".join([*cur, row])) > max_tokens:  # one row alone is too big: unavoidable cut
+            pieces += _split_words(row, count_tokens, max_tokens)
+            continue
+        cur.append(row)
+    if len(cur) > len(header):
+        pieces.append("\n".join(cur))
+    return pieces
+
+
+def _units(block: dict, count_tokens: CountTokens, max_tokens: int) -> list[tuple[str, bool]]:
+    """(text, is_table) pieces of one block, each <= max_tokens: whole block, else sentences / table rows."""
+    text = block["text"]
+    if count_tokens(text) <= max_tokens:
+        return [(text, block["kind"] == "table")]
+    if block["kind"] == "table":
+        return [(t, True) for t in _table_units(text, count_tokens, max_tokens)]
+    out = []
+    for sentence in SENTENCE_END.split(text):
+        if count_tokens(sentence) <= max_tokens:
+            out.append((sentence, False))
+        else:
+            out += [(w, False) for w in _split_words(sentence, count_tokens, max_tokens)]
+    return out
+
+
+def _tail(text: str, count_tokens: CountTokens, overlap: int) -> str:
+    """The last <= overlap tokens of text, on word boundaries."""
+    words = text.split()
+    tail: list[str] = []
+    while words and count_tokens(" ".join([words[-1], *tail])) <= overlap:
+        tail.insert(0, words.pop())
+    return " ".join(tail)
+
+
 def structure_chunker(
     blocks: list[dict], doc_id: str, count_tokens: CountTokens, max_tokens: int = 400, overlap: int = 60
 ) -> tuple[list[dict], list[dict]]:
-    """🧠 Varad implements. Returns (chunks, parents). See tests/test_chunk.py for the contract:
+    """Structure-aware chunking (SPEC §6.1). 🧠 explained in docs/BRAIN_NOTES.md. Returns (chunks, parents).
 
     - split at headings first, then paragraphs (blocks), then sentences, until a piece is <= max_tokens;
-      consecutive pieces of one oversized section share `overlap` tokens
-    - every chunk carries heading_path ("Revised GRAP › Stage III › Actions"), built from block levels
+      consecutive prose pieces of one oversized section share `overlap` tokens
+    - every chunk carries heading_path ("Revised GRAP › Stage III"), built from the parser's heading levels
     - embed_text = heading_path + "\\n" + text (contextual chunk header)
-    - a table block is never split mid-row; a table that fits is kept whole
-    - parents: one per top-level section {parent_id, doc_id, heading_path, text, token_count};
-      each chunk's parent_id points at one of them (small-to-big retrieval)
-    - chunk_id = f"{doc_id}::{section}::c{NN}"; page_start/page_end from the blocks used
+    - a table is never split mid-row; a table that fits is kept whole; split tables repeat their header
+    - parents: one per section {parent_id, doc_id, heading_path, text, token_count}; each chunk's parent_id points
+      at the section it came from (small-to-big retrieval)
+    - chunk_id = f"{doc_id}::s{NNN}::c{NN}"; page_start/page_end from the blocks used
     """
-    raise NotImplementedError("🧠 structure_chunker is Varad's to implement (plan step 2.1)")
+    chunks: list[dict] = []
+    parents: list[dict] = []
+    for s_idx, section in enumerate(_sections(blocks)):
+        path, section_id = section["path"], f"{doc_id}::s{s_idx:03d}"
+        parent_text = (path + "\n" if path else "") + "\n".join(b["text"] for b in section["blocks"])
+        parents.append(
+            {
+                "parent_id": section_id,
+                "doc_id": doc_id,
+                "heading_path": path,
+                "text": parent_text,
+                "token_count": count_tokens(parent_text),
+            }
+        )
+
+        units = [
+            (u, is_table, b["page"]) for b in section["blocks"] for u, is_table in _units(b, count_tokens, max_tokens)
+        ]
+        pieces: list[tuple[list[str], list[int], bool]] = []  # (texts, pages, ends_with_table)
+        cur: list[str] = []
+        pages: list[int] = []
+        size = 0
+        last_table = False
+        for text, is_table, page in units:
+            n = count_tokens(text)
+            if cur and size + n > max_tokens:
+                pieces.append((cur, pages, last_table))
+                tail = "" if (last_table or is_table) else _tail("\n".join(cur), count_tokens, overlap)
+                tail_n = count_tokens(tail) if tail else 0
+                cur, pages, size = ([tail], [pages[-1]], tail_n) if tail and tail_n + n <= max_tokens else ([], [], 0)
+            cur.append(text)
+            pages.append(page)
+            size += n
+            last_table = is_table
+        if cur:
+            pieces.append((cur, pages, last_table))
+
+        for c_idx, (texts, piece_pages, _) in enumerate(pieces):
+            text = "\n".join(texts).strip()
+            chunks.append(
+                {
+                    "chunk_id": f"{section_id}::c{c_idx:02d}",
+                    "doc_id": doc_id,
+                    "heading_path": path,
+                    "text": text,
+                    "embed_text": f"{path}\n{text}" if path else text,
+                    "page_start": min(piece_pages),
+                    "page_end": max(piece_pages),
+                    "parent_id": section_id,
+                    "token_count": count_tokens(text),
+                }
+            )
+    return chunks, parents
 
 
 def hf_tokenizer(model_name: str) -> tuple[Tokenize, CountTokens]:

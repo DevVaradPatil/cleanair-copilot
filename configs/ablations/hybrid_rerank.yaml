@@ -12,7 +12,7 @@ retrieval:
   rrf_k: 60
   rerank: true
   rerank_candidates: 30
-  rerank_threshold: null
+  rerank_threshold: 0.1837
   rerank_threshold_mode: gate
   k_final: 5
   current_only: true

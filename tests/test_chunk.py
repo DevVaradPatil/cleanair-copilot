@@ -46,10 +46,7 @@ def test_fixed_small_doc_is_one_chunk_and_bad_overlap_rejected():
         fixed_chunker(DOC, "d", ws_tokenize, size=50, overlap=50)
 
 
-# ---------- structure_chunker: 🧠 Varad's. These tests are its specification. ----------
-# xfail(strict) keeps the suite green while it raises NotImplementedError; once it works, these XPASS,
-# strict turns that into a failure, and that's the signal to delete the `brain` marker.
-brain = pytest.mark.xfail(raises=NotImplementedError, strict=True, reason="🧠 structure_chunker not implemented")
+# ---------- structure_chunker (🧠, explained in docs/BRAIN_NOTES.md). These tests are its specification. ----------
 
 LONG = " ".join(f"Sentence number {i} explains a dust control measure for construction sites." for i in range(12))
 TABLE = "|Action|Agency|\n|---|---|\n" + "\n".join(f"|Stop activity {i} immediately|Agency {i}|" for i in range(4))
@@ -68,7 +65,6 @@ def run(max_tokens=40, overlap=6):
     return structure_chunker(STRUCT_DOC, "d", ws_count, max_tokens=max_tokens, overlap=overlap)
 
 
-@brain
 def test_struct_heading_path_and_embed_text():
     chunks, _ = run()
     c = next(c for c in chunks if "Ban on construction" in c["text"])
@@ -76,25 +72,21 @@ def test_struct_heading_path_and_embed_text():
     assert c["embed_text"] == c["heading_path"] + "\n" + c["text"]
 
 
-@brain
 def test_struct_respects_max_tokens():
     chunks, _ = run(max_tokens=40)
     assert all(ws_count(c["text"]) <= 40 for c in chunks)
 
 
-@brain
 def test_struct_sections_are_not_mixed():
     chunks, _ = run()
     assert not any("Ban on construction" in c["text"] and "Stop activity" in c["text"] for c in chunks)
 
 
-@brain
 def test_struct_small_table_kept_whole():
     chunks, _ = run(max_tokens=60)
     assert sum(TABLE in c["text"] for c in chunks) == 1
 
 
-@brain
 def test_struct_big_table_split_only_between_rows():
     chunks, _ = run(max_tokens=12)
     for c in chunks:
@@ -103,7 +95,6 @@ def test_struct_big_table_split_only_between_rows():
                 assert line.endswith("|"), f"row cut mid-way: {line!r}"
 
 
-@brain
 def test_struct_long_paragraph_split_with_overlap():
     chunks, _ = run(max_tokens=40, overlap=6)
     dust = [c["text"].split() for c in chunks if c["heading_path"].endswith("Dust")]
@@ -111,7 +102,6 @@ def test_struct_long_paragraph_split_with_overlap():
     assert set(dust[0][-6:]) & set(dust[1][:12]), "consecutive pieces of one section should overlap"
 
 
-@brain
 def test_struct_parents_and_ids():
     chunks, parents = run()
     parent_ids = {p["parent_id"] for p in parents}

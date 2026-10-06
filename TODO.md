@@ -42,16 +42,8 @@ Secrets go **only** in `.env`. Never paste them into chat or commit them.
 ## M2: Retrieval
 - [ ] **T2.1** Make sure there's ~6 GB of free disk for the Hugging Face model downloads (embedder + reranker).
 - [ ] **T2.2** Write your own insight per step in `docs/LEARNING_LOG.md`. Claude can prompt you, but the words should be yours.
-- [ ] **🧠 2.1** Implement `structure_chunker` in `src/cleanair/ingest/chunk.py`. The spec is `tests/test_chunk.py`
-  (7 xfail tests). When they XPASS, delete the `brain` marker. Then build and evaluate A1:
-  `uv run python -m cleanair.ingest.chunk --config configs/ablations/struct_chunk.yaml`
-  `uv run python -m cleanair.ingest.embed --chunks data/processed/chunks/structure-400-60.jsonl`
-  `uv run python -m cleanair.ingest.index --config configs/ablations/struct_chunk.yaml`
-  `uv run python -m eval.harness --config configs/ablations/struct_chunk.yaml --set golden`
-- [ ] **🧠 2.3** Implement `rrf` and `weighted` in `src/cleanair/retrieval/fusion.py`. The spec is `tests/test_fusion.py`
-  (6 xfail tests). Then run A2 (`hybrid.yaml`) and A3 (`hybrid_rerank.yaml`) with `eval.harness` (same index as A1).
-  A3 is two passes: its threshold is `null` until you run `eval.threshold` on the first A3 run (see the yaml comment),
-  then `uv run python -m eval.report --runs eval/results/*golden` and update the README table.
+- [ ] **🧠 read** `docs/BRAIN_NOTES.md` §1 (RRF / weighted fusion) and §3 (structure-aware chunker). Claude wrote the
+  code (2026-10-06); the notes walk through it with worked examples and interview Q&A. Ask about anything unclear.
 
 ## M3: Data + routing
 - [ ] **T3.1 (now optional)** v1 data = CPCB daily AQI **bulletins** (city AQI, 2023-10 → 2026-10), already loaded.
@@ -61,18 +53,20 @@ Secrets go **only** in `.env`. Never paste them into chat or commit them.
 - [x] **T3.3** Settled for the bulletin data: city AQI = CPCB's published value (see `docs/DATA_DICTIONARY.md`). Reopen if station data arrives.
 - [ ] **T3.4** Verify the 87 new golden items in `eval/golden/questions.jsonl` (ids `dat-`, `mix-`, `mul-009..015`,
   `hin-`, `red-`). The Hindi/Hinglish wording especially; the data reference results were spot-checked, not all.
-- [ ] **🧠 3.4** Implement `validate` in `src/cleanair/sql/validate.py`. The spec is `tests/test_sql_validate.py` (39 xfail
-  cases: 28 attacks, 9 legitimate queries, plus LIMIT handling). Then the data path is live:
-  `uv run python -m cleanair.ask "How many days was Kanpur's AQI Severe in winter 2024-25?"`
-- [ ] **After T0.5 (billing) + 🧠 3.4:** run the A4-style end-to-end eval (router + SQL + mixed, ~150 questions × 3–5
-  LLM calls): `uv run python -m eval.harness --config configs/ablations/diag_router_rules.yaml --set golden --generate`,
-  and the LLM-router accuracy: `uv run python -m eval.harness --config configs/ablations/routing.yaml --router-only`.
+- [ ] **🧠 read** `docs/BRAIN_NOTES.md` §2 (SQL validator). The data path is live:
+  `uv run python -m cleanair.ask "How many days was Kanpur's AQI Severe in winter 2024-25?"` (needs LLM quota).
+- [ ] **After T0.5 (billing):** the full A4 run (all 150 questions end-to-end: router + SQL + mixed + answers +
+  faithfulness, ~150 × 3–5 LLM calls) and the full LLM-router and text-to-SQL runs:
+  `uv run python -m eval.harness --config configs/ablations/routing.yaml --set golden --generate`
+  `uv run python -m eval.harness --config configs/ablations/routing.yaml --router-only`
+  `uv run python -m eval.harness --config configs/ablations/routing.yaml --sql-only --gen-model gemini/gemini-3.8-flash`
+  (The A4 config needs `routing.yaml`'s structure index, which is already built.)
 
 ## M4: Quality + eval
 - [ ] **T4.1** Hand-label 80–100 answers (correct? faithful?) into `eval/golden/human_labels.jsonl`.
 - [ ] **T4.2** Get an API key from a **second model family** for the judge, and put it in `.env`.
 - [ ] **T4.3** Add the LLM API key(s) as **GitHub Actions secrets** for the smoke-gate CI.
-- [ ] Implement 🧠 citation checker (plan 4.1).
+- [ ] **🧠 read** the citation-checker section of `docs/BRAIN_NOTES.md` once Claude builds it (plan 4.1).
 
 ## M5: Ship
 - [ ] **T5.1** Create a **Langfuse** cloud project (or approve self-hosting). Put the public and secret keys in `.env`.

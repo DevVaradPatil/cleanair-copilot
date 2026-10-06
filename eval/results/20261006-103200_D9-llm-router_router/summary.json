@@ -1,0 +1,42 @@
+{
+ "config": "D9-llm-router",
+ "router": "llm",
+ "router_model": "gemini/gemini-3.1-flash-lite",
+ "stride": 8,
+ "fallbacks_to_rules": 0,
+ "route_accuracy": {
+  "mean": 0.8947,
+  "ci95": [
+   0.7368,
+   1.0
+  ],
+  "n": 19
+ },
+ "language_accuracy": 1.0,
+ "confusion (gold -> predicted)": {
+  "policy": {
+   "policy": 10,
+   "data": 0,
+   "mixed": 1,
+   "out_of_scope": 0
+  },
+  "data": {
+   "policy": 0,
+   "data": 4,
+   "mixed": 0,
+   "out_of_scope": 1
+  },
+  "mixed": {
+   "policy": 0,
+   "data": 0,
+   "mixed": 3,
+   "out_of_scope": 0
+  },
+  "out_of_scope": {
+   "policy": 0,
+   "data": 0,
+   "mixed": 0,
+   "out_of_scope": 0
+  }
+ }
+}

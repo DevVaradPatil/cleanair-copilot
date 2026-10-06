@@ -1,0 +1,6 @@
+# D8 (diagnostic) — A3 without the sparse half: structure chunks + dense + rerank + current filter (no fusion).
+# Isolates whether hybrid/sparse is what hurts Hindi/Hinglish questions in A3.
+name: D8-struct-dense-rerank
+chunker: {type: structure, max_tokens: 400, overlap: 60}
+retrieval: {dense: true, sparse: false, rerank: true, rerank_candidates: 30, rerank_threshold: null, k_final: 5, current_only: true}
+routing: {router: none}

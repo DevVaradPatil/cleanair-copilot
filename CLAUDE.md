@@ -17,10 +17,11 @@ there as they finish. **`TODO.md`** holds every manual task for Varad (keys, acc
 🧠 implementations). Whenever a step needs something you can't do yourself, add it to `TODO.md` with a `T<phase>.<n>`
 ID, mark it 👤 in `plan.md`, and tell Varad.
 
-**Current milestone: M3 built; M2 and M3 acceptance blocked only on Varad's 🧠 work + LLM billing (2026-10-05).**
-M0–M1 done. M2: everything non-🧠 built and measured with diagnostic configs D1–D6. M3: CPCB bulletin data in
-DuckDB, text-to-SQL, router (rules + LLM), mixed path, `cleanair.pipeline.Copilot`, golden set v1 (150). Waiting on:
-🧠 `structure_chunker`, `rrf`/`weighted`, `validate` (then A1–A4), T0.5 (Gemini billing), T1.5/T3.4 (golden checks).
+**Current milestone: M2 done; M3 done except the full A4 end-to-end run, which needs LLM billing (2026-10-06).**
+All 🧠 components except the citation checker (M4) are implemented and explained in `docs/BRAIN_NOTES.md`.
+A0–A3 measured on golden v1 (A3 recall@5 0.621); text-to-SQL 17/17 and LLM router 0.89 on free-tier samples.
+Next: M4 (citation checker 🧠, condensation, guardrails, judge calibration, multilingual threshold calibration).
+Waiting on Varad: T0.5 (Gemini billing), T1.5/T3.4 (golden checks), T2.2 (insights), T4.1 (hand labels).
 Update this line when a milestone's acceptance criteria pass.
 
 ## Working agreement (learning mode is ON, SPEC.md §0.1)
@@ -30,9 +31,12 @@ Varad wants to ship this project and understand every line of it. For every new 
 1. **Explain → propose → implement → test.** Start with a 2–6 sentence explanation of the concept, the options,
    and the one we're picking and why. Then propose the file layout, then write code, then show it working.
 2. **One module at a time.** Each one ships with at least one test or a runnable demo script.
-3. **🧠 components: scaffold the interface and tests only.** Varad writes the core logic, then you review it.
-   These are: the structure-aware chunker (§6.1), RRF / weighted fusion (§7.1), the SQL validator (§8.1), and
-   the citation checker (§9.3). Don't fill these in, even when asked to "just finish the milestone". Ask first.
+3. **🧠 components = "Varad must understand these deeply", NOT "Varad writes them".** Claude writes all code,
+   including 🧠 parts (agentic-coding workflow: build first, understand after). For each 🧠 component also write a
+   deep explainer in `docs/BRAIN_NOTES.md`: the concept, alternatives, a walkthrough of the actual code, a worked
+   example, pitfalls, and likely interview questions with answers. 🧠 components: the structure-aware chunker
+   (§6.1), RRF / weighted fusion (§7.1), the SQL validator (§8.1), and the citation checker (§9.3).
+   (Clarified by Varad on 2026-10-06; earlier sessions wrongly left these unimplemented.)
 4. **No silent dependency or architecture changes.** Propose the change and wait for an OK. This covers new
    packages, swapping a stack component (§4.1), and changing a schema (§5).
 5. **Log every non-trivial decision** in `docs/DECISIONS.md` as date, decision, alternatives, reason.

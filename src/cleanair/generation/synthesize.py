@@ -57,7 +57,13 @@ def complete_json(
             try:
                 resp, used = _call(m, messages, temperature, max_tokens), m
                 break
-            except TRANSIENT:
+            except (*TRANSIENT, litellm.exceptions.BadRequestError) as e:
+                # Gemini reports quota as 429 RESOURCE_EXHAUSTED, which LiteLLM sometimes maps to BadRequestError.
+                # A per-DAY quota won't recover in seconds: move to the next model now. Per-minute: back off.
+                if "PerDay" in str(e):
+                    break
+                if isinstance(e, litellm.exceptions.BadRequestError) and "RESOURCE_EXHAUSTED" not in str(e):
+                    raise  # a genuinely bad request: retrying or falling back won't fix it
                 if attempt < retries - 1:
                     time.sleep(3 * 2**attempt)  # 3, 6, 12 s
         if resp is not None:

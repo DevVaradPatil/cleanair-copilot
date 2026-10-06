@@ -17,8 +17,9 @@ from pathlib import Path
 
 
 def best_scores(rows: list[dict]) -> tuple[list[float], list[float]]:
-    ans = [r["top"][0][1] for r in rows if r["answerable"] and r["top"]]
-    una = [r["top"][0][1] for r in rows if not r["answerable"] and r["top"]]
+    # rows without "top" never went through retrieval (data-only questions since golden v1)
+    ans = [r["top"][0][1] for r in rows if r["answerable"] and r.get("top")]
+    una = [r["top"][0][1] for r in rows if not r["answerable"] and r.get("top")]
     return ans, una
 
 
